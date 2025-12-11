@@ -266,7 +266,7 @@
                 <td class="title-col">${val('Title') || '<span class="empty-cell">Untitled</span>'}</td>
                 <td class="author-col">${val('Author') || '<span class="empty-cell">-</span>'}</td>
                 <td><span class="badge-category">${val('Category') || 'Uncategorized'}</span></td>
-                <td>${val('Cost')}</td>
+                <td>${money(val('Cost'))}</td>
                 <td>${money(val('Price'))}</td>
                 <td class="profit-col">${money(val('Profit'))}</td>
                 <td class="text-center">${statusBadge}</td>
