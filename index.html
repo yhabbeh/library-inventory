@@ -357,9 +357,9 @@
                             <th style="width: 35%;">Title</th>
                             <th style="width: 20%;">Author</th>
                             <th>Category</th>
-                            <th>Cost</th>
+                            <!-- <th>Cost</th> -->
                             <th>Price</th>
-                            <th class="profit-col">Profit</th>
+                            <!-- <th class="profit-col">Profit</th> -->
                             <th class="text-center">Status</th>
                         </tr>
                     </thead>
@@ -540,15 +540,14 @@
                 <td class="title-col">${val('Title') || '<span class="empty-cell">Untitled</span>'}</td>
                 <td class="author-col">${val('Author') || '<span class="empty-cell">-</span>'}</td>
                 <td><span class="category-badge">${val('Category') || 'Uncategorized'}</span></td>
-                <td class="price-col text-muted">${money(val('Cost'))}</td>
                 <td class="price-col text-muted">${money(val('Price'))}</td>
-                <td class="profit-col">${money(val('Profit'))}</td>
                 <td class="text-center">${statusBadge}</td>
             `;
                 tbody.appendChild(tr);
             });
         }
-
+        // <td class="price-col text-muted">${money(val('Cost'))}</td>
+        //. <td class="profit-col">${money(val('Profit'))}</td>
         // --- SEARCH FILTER ---
         function onSearchInput() {
             const input = document.getElementById("searchInput");
