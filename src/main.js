@@ -677,7 +677,7 @@ function renderUI() {
 
     <div id="checkout-modal" class="modal-overlay" onclick="if(event.target === this) window.closeCheckout()">
       <div class="modal-content checkout-modal-content">
-        <div class="modal-details" style="width: 100%;">
+        <div class="modal-details">
           <button class="modal-close" onclick="window.closeCheckout()">&times;</button>
           <h2>${t.checkout}</h2>
           <div id="checkout-content"></div>
