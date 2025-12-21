@@ -169,13 +169,13 @@ h1 {
 .categories {
   display: flex;
   overflow-x: auto;
-  gap: 0.75rem;
-  padding: 1rem 0;
-  margin-bottom: 2rem;
+  width: 100%;
   -ms-overflow-style: none;
   scrollbar-width: none;
-  width: 100%;
-  mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+  padding: 1rem 0;
+  margin-bottom: 2rem;
+  mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
 }
 
 .categories::-webkit-scrollbar {
@@ -215,6 +215,7 @@ h1 {
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 2rem;
   padding-bottom: 5rem;
+  width: 100%;
 }
 
 .book-card {
@@ -484,126 +485,140 @@ h1 {
   font-weight: 500;
 }
 
-/* Responsive */
+/* Responsive Design System */
+@media (max-width: 1024px) {
+  .modal-content {
+    max-width: 95vw;
+  }
+}
+
 @media (max-width: 768px) {
+  #app {
+    padding: 3.5rem 1.25rem 1.25rem 1.25rem;
+  }
+
+  .lang-switcher {
+    top: 1rem;
+    right: 1.25rem;
+  }
+
+  [dir="rtl"] .lang-switcher {
+    left: 1.25rem;
+  }
+
   h1 {
     font-size: 2.5rem;
   }
 
-  #app {
-    padding: 1rem;
+  .subtitle {
+    font-size: 1rem;
+    padding: 0 0.5rem;
+  }
+
+  .search-container {
+    padding: 0;
+    margin-top: 1.5rem;
+  }
+
+  .search-input {
+    padding: 1rem 1rem 1rem 3rem;
+    font-size: 1rem;
+    border-radius: 16px;
+  }
+
+  [dir="rtl"] .search-input {
+    padding: 1rem 3rem 1rem 1rem;
   }
 
   .book-grid {
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  }
-}
-
-/* Modal styles for "Professional" touch */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(8px);
-  z-index: 1000;
-  display: none;
-  justify-content: center;
-  align-items: center;
-  padding: 2rem;
-}
-
-.modal-content {
-  background: rgba(10, 10, 15, 0.98);
-  max-width: 1000px;
-  width: 100%;
-  border-radius: 32px;
-  display: flex;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  position: relative;
-  max-height: 85vh;
-  box-shadow: 0 50px 100px -20px rgba(0, 0, 0, 0.8);
-  animation: modalScale 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.modal-placeholder {
-  flex: 0 0 400px;
-  height: auto;
-  min-height: 400px;
-}
-
-.modal-placeholder .cover-title {
-  font-size: 2.2rem;
-  padding: 3rem;
-}
-
-@keyframes modalScale {
-  from {
-    transform: scale(0.9) translateY(20px);
-    opacity: 0;
+    gap: 1.25rem;
   }
 
-  to {
-    transform: scale(1) translateY(0);
-    opacity: 1;
+  .book-img-container {
+    height: 340px;
   }
-}
 
-.modal-close {
-  position: absolute;
-  top: 1.5rem;
-  right: 1.5rem;
-  background: rgba(255, 255, 255, 0.1);
-  border: none;
-  color: white;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 1.5rem;
-}
-
-.modal-img {
-  width: 40%;
-  object-fit: cover;
-}
-
-.modal-details {
-  padding: 3rem;
-  width: 60%;
-  overflow-y: auto;
-}
-
-.modal-details h2 {
-  font-size: 2rem;
-  margin-bottom: 0.5rem;
-}
-
-.modal-brief {
-  color: var(--text-muted);
-  margin: 1.5rem 0;
-  line-height: 1.8;
-  font-size: 1.1rem;
-}
-
-@media (max-width: 600px) {
   .modal-content {
     flex-direction: column;
+    max-height: 95vh;
+    border-radius: 20px;
   }
 
-  .modal-img {
+  .modal-img,
+  .modal-placeholder {
     width: 100%;
-    height: 300px;
+    height: 280px;
+    flex: none;
+  }
+
+  .modal-placeholder .cover-title {
+    font-size: 1.8rem;
+    padding: 2rem;
   }
 
   .modal-details {
     width: 100%;
     padding: 1.5rem;
+  }
+
+  .modal-details h2 {
+    font-size: 1.5rem;
+  }
+
+  .modal-brief {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin: 1rem 0;
+  }
+
+  .modal-close {
+    top: 0.75rem;
+    right: 0.75rem;
+    width: 32px;
+    height: 32px;
+    font-size: 1.2rem;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+  }
+}
+
+@media (max-width: 480px) {
+  h1 {
+    font-size: 2.2rem;
+  }
+
+  .book-grid {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+  }
+
+  .book-img-container {
+    height: 400px;
+  }
+
+  .category-pill {
+    padding: 0.6rem 1rem;
+    font-size: 0.85rem;
+  }
+
+  .pagination {
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .pag-btn {
+    padding: 0.7rem 1.2rem;
+    font-size: 0.85rem;
+    flex: 1;
+    text-align: center;
+  }
+
+  .pag-info {
+    font-size: 0.85rem;
+    width: 100%;
+    text-align: center;
+    order: -1;
+    margin-bottom: 0.5rem;
   }
 }
