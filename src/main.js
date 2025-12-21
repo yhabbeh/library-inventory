@@ -1,6 +1,7 @@
 import './style.css'
 
 const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1o_KJTYojVnXI96dkOqIZrGtXTIuwn5bx0z1IBfrXTJ0/export?format=csv';
+const ORDER_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwNKwKvCKrfOsFmBxaQYJL1wY77QQ5g2U9loEIXMWmtUoD41t3-0u7B9bZxTeWsSC2yWQ/exec';
 
 let books = [];
 let filteredBooks = [];
@@ -521,32 +522,61 @@ window.openCheckout = () => {
   modal.style.display = 'flex';
 };
 
-window.handleOrder = (e) => {
+window.handleOrder = async (e) => {
   e.preventDefault();
   const t = translations[currentLang];
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  const originalBtnText = submitBtn.innerText;
+
+  // Show loading state
+  submitBtn.disabled = true;
+  submitBtn.innerText = currentLang === 'ar' ? 'جاري الإرسال...' : 'Sending...';
+
   const formData = new FormData(e.target);
   const orderData = {
     customer: Object.fromEntries(formData),
-    items: cart,
-    total: cart.reduce((sum, item) => sum + (parseFloat(item.price) || 0), 0)
+    items: cart.map(item => `${item.title} (x${item.quantity})`).join(', '),
+    total: cart.reduce((sum, item) => sum + (parseFloat(item.price) || 0) * item.quantity, 0).toFixed(2),
+    timestamp: new Date().toLocaleString()
   };
 
-  console.log('Order Submitted:', orderData);
+  try {
+    // We use no-cors if the Apps Script is not configured for CORS, 
+    // but better to use a standard POST if possible.
+    if (ORDER_ENDPOINT !== 'REPLACE_WITH_YOUR_APPS_SCRIPT_URL') {
+      await fetch(ORDER_ENDPOINT, {
+        method: 'POST',
+        mode: 'no-cors', // Standard for GAS simple POSTs
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderData)
+      });
+    } else {
+      console.warn('ORDER_ENDPOINT not set. Logging data instead:', orderData);
+    }
 
-  // Show success
-  const content = document.getElementById('checkout-content');
-  content.innerHTML = `
-    <div class="order-success">
-      <div class="success-icon">✓</div>
-      <h3>${t.orderSuccess}</h3>
-      <button class="primary-btn" onclick="window.closeCheckout(); location.reload();">${t.all}</button>
-    </div>
-  `;
+    // Show success
+    const content = document.getElementById('checkout-content');
+    content.innerHTML = `
+      <div class="order-success">
+        <div class="success-icon">✓</div>
+        <h3>${t.orderSuccess}</h3>
+        <p style="color: var(--text-muted); margin-bottom: 2rem;">
+          ${currentLang === 'ar' ? 'تم تسجيل طلبك وإرسال إشعار بالبريد الإلكتروني.' : 'Your order has been recorded and an email notification has been sent.'}
+        </p>
+        <button class="primary-btn" onclick="window.closeCheckout(); location.reload();">${t.all}</button>
+      </div>
+    `;
 
-  // Clear cart
-  cart = [];
-  saveCart();
-  updateCartBadge();
+    // Clear cart
+    cart = [];
+    saveCart();
+    updateCartBadge();
+  } catch (error) {
+    console.error('Order Submission Error:', error);
+    submitBtn.disabled = false;
+    submitBtn.innerText = originalBtnText;
+    alert(currentLang === 'ar' ? 'حدث خطأ أثناء إرسال الطلب. يرجى المحاولة مرة أخرى.' : 'Error sending order. Please try again.');
+  }
 };
 
 window.closeCheckout = () => {
