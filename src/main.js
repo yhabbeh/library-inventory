@@ -10,6 +10,20 @@ let searchQuery = '';
 let currentLang = 'ar'; // Default to Arabic as per data
 let currentPage = 1;
 const ITEMS_PER_PAGE = 100;
+let cart = JSON.parse(localStorage.getItem('cart') || '[]');
+// Migration: Ensure all cart items have a quantity (if they were from the old array-based system)
+cart = cart.map(item => ({ ...item, quantity: item.quantity || 1 }));
+// deduplicate by title if multiple instances existed
+const uniqueCart = [];
+cart.forEach(item => {
+  const existing = uniqueCart.find(u => u.title === item.title);
+  if (existing) {
+    existing.quantity += item.quantity;
+  } else {
+    uniqueCart.push(item);
+  }
+});
+cart = uniqueCart;
 
 const translations = {
   en: {
@@ -32,7 +46,19 @@ const translations = {
     dir: 'ltr',
     prev: 'Previous',
     next: 'Next',
-    pageOf: (current, total) => `Page ${current} of ${total}`
+    pageOf: (current, total) => `Page ${current} of ${total}`,
+    addToCart: 'Add to Cart',
+    cart: 'Shopping Cart',
+    emptyCart: 'Your cart is empty',
+    checkout: 'Checkout',
+    fullName: 'Full Name',
+    phoneNumber: 'Phone Number',
+    address: 'Delivery Address',
+    placeOrder: 'Place Order',
+    orderSuccess: 'Thank you! Your order has been placed.',
+    total: 'Total',
+    items: 'items',
+    remove: 'Remove'
   },
   ar: {
     title: 'مكتبة الجرد',
@@ -54,7 +80,19 @@ const translations = {
     dir: 'rtl',
     prev: 'السابق',
     next: 'التالي',
-    pageOf: (current, total) => `صفحة ${current} من ${total}`
+    pageOf: (current, total) => `صفحة ${current} من ${total}`,
+    addToCart: 'إضافة إلى السلة',
+    cart: 'سلة التسوق',
+    emptyCart: 'سلة التسوق فارغة',
+    checkout: 'إتمام الطلب',
+    fullName: 'الاسم الكامل',
+    phoneNumber: 'رقم الهاتف',
+    address: 'عنوان التوصيل',
+    placeOrder: 'تأكيد الطلب',
+    orderSuccess: 'شكراً لك! تم استلام طلبك بنجاح.',
+    total: 'المجموع',
+    items: 'عناصر',
+    remove: 'حذف'
   }
 };
 
@@ -238,7 +276,12 @@ function renderBooks() {
           <div class="book-title">${book.title}</div>
           <div class="book-author">${book.author}</div>
           <div class="book-price">${book.price && !isNaN(parseFloat(book.price)) ? `$${parseFloat(book.price).toFixed(2)}` : t.priceOnRequest}</div>
-          ${book.availability === '1' ? `<span class="status-badge in-stock">${t.inStock}</span>` : `<span class="status-badge out-of-stock">${t.outOfAvailability}</span>`}
+          <div class="card-actions">
+            ${book.availability === '1' ? `<span class="status-badge in-stock">${t.inStock}</span>` : `<span class="status-badge out-of-stock">${t.outOfAvailability}</span>`}
+            <div class="cart-action-wrapper" onclick="event.stopPropagation()">
+              ${renderAddToCartButton(book)}
+            </div>
+          </div>
         </div>
       </div>
     `;
@@ -309,6 +352,207 @@ function filterBooks() {
   renderBooks();
 }
 
+function saveCart() {
+  localStorage.setItem('cart', JSON.stringify(cart));
+}
+
+function updateCartBadge() {
+  const badge = document.getElementById('cart-badge');
+  if (badge) {
+    const totalQty = cart.reduce((sum, item) => sum + item.quantity, 0);
+    badge.innerText = totalQty;
+    badge.style.display = totalQty > 0 ? 'flex' : 'none';
+  }
+}
+
+function renderAddToCartButton(book) {
+  const cartItem = cart.find(item => item.title === book.title);
+  if (cartItem) {
+    return `
+      <div class="qty-controls">
+        <button class="qty-btn minus" onclick="window.decrementQuantity('${book.title.replace(/'/g, "\\'")}')">−</button>
+        <span class="qty-val">${cartItem.quantity}</span>
+        <button class="qty-btn" onclick="window.incrementQuantity('${book.title.replace(/'/g, "\\'")}')">+</button>
+      </div>
+    `;
+  }
+  return `
+    <button class="add-to-cart-btn-sm" onclick="window.addToCartByTitle('${book.title.replace(/'/g, "\\'")}')">
+      <span>+</span>
+    </button>
+  `;
+}
+
+window.addToCart = (index) => {
+  const book = filteredBooks[index];
+  window.addToCartByTitle(book.title);
+};
+
+window.addToCartByTitle = (title) => {
+  window.incrementQuantity(title);
+  // Automatically open cart to show success
+  const modal = document.getElementById('cart-modal');
+  if (modal.style.display !== 'flex') {
+    window.toggleCart();
+  }
+};
+
+window.incrementQuantity = (title) => {
+  const cartItem = cart.find(item => item.title === title);
+  if (cartItem) {
+    cartItem.quantity += 1;
+  } else {
+    const book = books.find(b => b.title === title);
+    cart.push({ ...book, quantity: 1 });
+  }
+  saveCart();
+  updateCartBadge();
+  renderBooks();
+  updateOpenModals(title);
+};
+
+window.decrementQuantity = (title) => {
+  const cartItem = cart.find(item => item.title === title);
+  if (cartItem) {
+    cartItem.quantity -= 1;
+    if (cartItem.quantity <= 0) {
+      cart = cart.filter(item => item.title !== title);
+    }
+  }
+  saveCart();
+  updateCartBadge();
+  renderBooks();
+  updateOpenModals(title);
+};
+
+function updateOpenModals(title) {
+  // Update cart modal if open
+  if (document.getElementById('cart-modal').style.display === 'flex') {
+    renderCartModal();
+  }
+
+  // Update main book modal if open and showing this book
+  const modal = document.getElementById('modal');
+  if (modal && modal.style.display === 'flex') {
+    const book = books.find(b => b.title === title);
+    const actionArea = document.querySelector('.modal-cart-action');
+    if (actionArea && book) {
+      actionArea.innerHTML = renderAddToCartButton(book);
+    }
+  }
+}
+
+window.toggleCart = () => {
+  const modal = document.getElementById('cart-modal');
+  if (modal.style.display === 'flex') {
+    modal.style.display = 'none';
+  } else {
+    renderCartModal();
+    modal.style.display = 'flex';
+  }
+};
+
+function renderCartModal() {
+  const container = document.getElementById('cart-content');
+  const t = translations[currentLang];
+
+  if (cart.length === 0) {
+    container.innerHTML = `<div class="empty-cart-msg">${t.emptyCart}</div>`;
+    return;
+  }
+
+  const total = cart.reduce((sum, item) => sum + (parseFloat(item.price) || 0) * item.quantity, 0);
+  const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+  container.innerHTML = `
+    <div class="cart-items">
+      ${cart.map(item => `
+        <div class="cart-item">
+          <img src="${item.image}" alt="${item.title}">
+          <div class="cart-item-info">
+            <h4>${item.title}</h4>
+            <p>${item.price && !isNaN(parseFloat(item.price)) ? `$${parseFloat(item.price).toFixed(2)}` : t.priceOnRequest}</p>
+          </div>
+          <div class="qty-controls">
+            <button class="qty-btn minus" onclick="window.decrementQuantity('${item.title.replace(/'/g, "\\'")}')">−</button>
+            <span class="qty-val">${item.quantity}</span>
+            <button class="qty-btn" onclick="window.incrementQuantity('${item.title.replace(/'/g, "\\'")}')">+</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    <div class="cart-footer">
+      <div class="cart-summary-row">
+        <span>${t.items}:</span>
+        <span>${totalItems}</span>
+      </div>
+      <div class="cart-total">
+        <span>${t.total}:</span>
+        <span>$${total.toFixed(2)}</span>
+      </div>
+      <button class="primary-btn checkout-btn" onclick="window.openCheckout()">${t.checkout}</button>
+    </div>
+  `;
+}
+
+window.openCheckout = () => {
+  document.getElementById('cart-modal').style.display = 'none';
+  const modal = document.getElementById('checkout-modal');
+  const t = translations[currentLang];
+
+  const content = document.getElementById('checkout-content');
+  content.innerHTML = `
+    <form id="checkout-form" onsubmit="window.handleOrder(event)">
+      <div class="form-group">
+        <label>${t.fullName}</label>
+        <input type="text" name="name" required placeholder="John Doe">
+      </div>
+      <div class="form-group">
+        <label>${t.phoneNumber}</label>
+        <input type="tel" name="phone" required placeholder="+1 234 567 890">
+      </div>
+      <div class="form-group">
+        <label>${t.address}</label>
+        <textarea name="address" required placeholder="123 Luxury Ave, City"></textarea>
+      </div>
+      <button type="submit" class="primary-btn submit-order-btn">${t.placeOrder}</button>
+    </form>
+  `;
+  modal.style.display = 'flex';
+};
+
+window.handleOrder = (e) => {
+  e.preventDefault();
+  const t = translations[currentLang];
+  const formData = new FormData(e.target);
+  const orderData = {
+    customer: Object.fromEntries(formData),
+    items: cart,
+    total: cart.reduce((sum, item) => sum + (parseFloat(item.price) || 0), 0)
+  };
+
+  console.log('Order Submitted:', orderData);
+
+  // Show success
+  const content = document.getElementById('checkout-content');
+  content.innerHTML = `
+    <div class="order-success">
+      <div class="success-icon">✓</div>
+      <h3>${t.orderSuccess}</h3>
+      <button class="primary-btn" onclick="window.closeCheckout(); location.reload();">${t.all}</button>
+    </div>
+  `;
+
+  // Clear cart
+  cart = [];
+  saveCart();
+  updateCartBadge();
+};
+
+window.closeCheckout = () => {
+  document.getElementById('checkout-modal').style.display = 'none';
+};
+
 window.openModal = (index) => {
   const book = filteredBooks[index];
   const modal = document.getElementById('modal');
@@ -336,6 +580,9 @@ window.openModal = (index) => {
     <div class="book-price" style="font-size: 2rem; margin-top: 1rem;">
       ${book.price && !isNaN(parseFloat(book.price)) ? `${t.pricePrefix}${parseFloat(book.price).toFixed(2)}` : t.priceOnRequest}
     </div>
+    <div style="margin-top: 2rem;" class="modal-cart-action">
+      ${renderAddToCartButton(book)}
+    </div>
   `;
   modal.style.display = 'flex';
 };
@@ -347,9 +594,15 @@ window.closeModal = () => {
 function renderUI() {
   const t = translations[currentLang];
   document.getElementById('app').innerHTML = `
-    <div class="lang-switcher">
-      <button class="${currentLang === 'en' ? 'active' : ''}" onclick="window.setLanguage('en')">EN</button>
-      <button class="${currentLang === 'ar' ? 'active' : ''}" onclick="window.setLanguage('ar')">AR</button>
+    <div class="header-actions">
+      <div class="lang-switcher">
+        <button class="${currentLang === 'en' ? 'active' : ''}" onclick="window.setLanguage('en')">EN</button>
+        <button class="${currentLang === 'ar' ? 'active' : ''}" onclick="window.setLanguage('ar')">AR</button>
+      </div>
+      <div class="cart-trigger" onclick="window.toggleCart()">
+        <span class="cart-icon">🛒</span>
+        <span id="cart-badge" class="cart-badge" style="display: ${cart.length > 0 ? 'flex' : 'none'}">${cart.length}</span>
+      </div>
     </div>
     <header>
       <h1>${t.title}</h1>
@@ -379,6 +632,26 @@ function renderUI() {
       <div class="modal-content">
         <img id="modal-img" class="modal-img" src="" alt="">
         <div id="modal-details" class="modal-details"></div>
+      </div>
+    </div>
+
+    <div id="cart-modal" class="modal-overlay cart-overlay" onclick="if(event.target === this) window.toggleCart()">
+      <div class="cart-sidebar">
+        <div class="cart-header">
+          <h3>${t.cart}</h3>
+          <button class="close-cart" onclick="window.toggleCart()">&times;</button>
+        </div>
+        <div id="cart-content" class="cart-content-area"></div>
+      </div>
+    </div>
+
+    <div id="checkout-modal" class="modal-overlay" onclick="if(event.target === this) window.closeCheckout()">
+      <div class="modal-content checkout-modal-content">
+        <div class="modal-details" style="width: 100%;">
+          <button class="modal-close" onclick="window.closeCheckout()">&times;</button>
+          <h2>${t.checkout}</h2>
+          <div id="checkout-content"></div>
+        </div>
       </div>
     </div>
   `;
