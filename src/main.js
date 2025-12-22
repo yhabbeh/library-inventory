@@ -563,7 +563,7 @@ window.handleOrder = async (e) => {
         <p style="color: var(--text-muted); margin-bottom: 2rem;">
           ${currentLang === 'ar' ? 'تم تسجيل طلبك وإرسال إشعار بالبريد الإلكتروني.' : 'Your order has been recorded and an email notification has been sent.'}
         </p>
-        <button class="primary-btn" onclick="window.closeCheckout(); location.reload();">${t.all}</button>
+        <button class="primary-btn" onclick="window.closeCheckout(); location.reload();">${t.close}</button>
       </div>
     `;
 
