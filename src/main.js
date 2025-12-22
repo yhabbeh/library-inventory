@@ -1,7 +1,7 @@
 import './style.css'
 
 const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1o_KJTYojVnXI96dkOqIZrGtXTIuwn5bx0z1IBfrXTJ0/export?format=csv';
-const ORDER_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwNKwKvCKrfOsFmBxaQYJL1wY77QQ5g2U9loEIXMWmtUoD41t3-0u7B9bZxTeWsSC2yWQ/exec';
+const ORDER_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwQOHwQmOYCTg1D3FDRHp5zenrGH8BbnGfjV8nMgUpjyieAe4VphcvEEfvhHocqcgG9/exec';
 
 let books = [];
 let filteredBooks = [];
