@@ -32,6 +32,7 @@ const translations = {
     subtitle: 'Explore and manage our premium library collection. Real-time availability from our central database.',
     searchPlaceholder: 'Search by title, author, or category...',
     all: 'All',
+    close: 'Close',
     itemsFound: 'items found',
     loading: 'Loading collection...',
     priceOnRequest: 'Price on request',
@@ -66,6 +67,7 @@ const translations = {
     subtitle: 'استكشف وإدارة مجموعتنا المكتبية المتميزة. توفر مباشر من قاعدة بياناتنا المركزية.',
     searchPlaceholder: 'ابحث حسب العنوان أو المؤلف أو التصنيف...',
     all: 'الكل',
+    close: 'إغلاق',
     itemsFound: 'عناصر موجودة',
     loading: 'جاري تحميل المجموعة...',
     priceOnRequest: 'السعر عند الطلب',
@@ -540,15 +542,22 @@ window.handleOrder = async (e) => {
     timestamp: new Date().toLocaleString()
   };
 
+  const formDataToSubmit = new URLSearchParams();
+  formDataToSubmit.append('name', orderData.customer.name);
+  formDataToSubmit.append('phone', orderData.customer.phone);
+  formDataToSubmit.append('address', orderData.customer.address);
+  formDataToSubmit.append('items', orderData.items);
+  formDataToSubmit.append('total', orderData.total);
+  formDataToSubmit.append('timestamp', orderData.timestamp);
+
   try {
-    // We use no-cors if the Apps Script is not configured for CORS, 
-    // but better to use a standard POST if possible.
     if (ORDER_ENDPOINT !== 'REPLACE_WITH_YOUR_APPS_SCRIPT_URL') {
+      // Using simple POST with URLSearchParams to avoid CORS preflight issues
       await fetch(ORDER_ENDPOINT, {
         method: 'POST',
-        mode: 'no-cors', // Standard for GAS simple POSTs
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderData)
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formDataToSubmit.toString()
       });
     } else {
       console.warn('ORDER_ENDPOINT not set. Logging data instead:', orderData);
