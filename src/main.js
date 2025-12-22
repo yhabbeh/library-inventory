@@ -33,6 +33,7 @@ const translations = {
     searchPlaceholder: 'Search by title, author, or category...',
     all: 'All',
     close: 'Close',
+    quantity: 'x',
     itemsFound: 'items found',
     loading: 'Loading collection...',
     priceOnRequest: 'Price on request',
@@ -68,6 +69,7 @@ const translations = {
     searchPlaceholder: 'ابحث حسب العنوان أو المؤلف أو التصنيف...',
     all: 'الكل',
     close: 'إغلاق',
+    quantity: 'عدد',
     itemsFound: 'عناصر موجودة',
     loading: 'جاري تحميل المجموعة...',
     priceOnRequest: 'السعر عند الطلب',
@@ -537,7 +539,7 @@ window.handleOrder = async (e) => {
   const formData = new FormData(e.target);
   const orderData = {
     customer: Object.fromEntries(formData),
-    items: cart.map(item => `${item.title} (x${item.quantity})`).join(', '),
+    items: cart.map(item => `${item.title} (${translations[currentLang].quantity} ${item.quantity})`).join(', '),
     total: cart.reduce((sum, item) => sum + (parseFloat(item.price) || 0) * item.quantity, 0).toFixed(2),
     timestamp: new Date().toLocaleString()
   };
