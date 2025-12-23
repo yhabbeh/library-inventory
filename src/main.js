@@ -64,7 +64,7 @@ const translations = {
     remove: 'Remove'
   },
   ar: {
-    title: 'مكتبة الجرد',
+    title: 'مكتبة وعي',
     subtitle: 'استكشف وإدارة مجموعتنا المكتبية المتميزة. توفر مباشر من قاعدة بياناتنا المركزية.',
     searchPlaceholder: 'ابحث حسب العنوان أو المؤلف أو التصنيف...',
     all: 'الكل',
@@ -274,15 +274,15 @@ function renderBooks() {
     return `
       <div class="book-card" onclick="window.openModal(${absoluteIndex})">
         <div class="book-img-container">
+          ${book.availability === '1' ? `<span class="status-badge in-stock">${t.inStock}</span>` : `<span class="status-badge out-of-stock">${t.outOfAvailability}</span>`}
           ${coverContent}
         </div>
         <div class="book-info">
           <div class="book-category">${book.category}</div>
           <div class="book-title">${book.title}</div>
           <div class="book-author">${book.author}</div>
-          <div class="book-price">${book.price && !isNaN(parseFloat(book.price)) ? `$${parseFloat(book.price).toFixed(2)}` : t.priceOnRequest}</div>
           <div class="card-actions">
-            ${book.availability === '1' ? `<span class="status-badge in-stock">${t.inStock}</span>` : `<span class="status-badge out-of-stock">${t.outOfAvailability}</span>`}
+            <div class="book-price">${book.price && !isNaN(parseFloat(book.price)) ? `$${parseFloat(book.price).toFixed(2)}` : t.priceOnRequest}</div>
             <div class="cart-action-wrapper" onclick="event.stopPropagation()">
               ${renderAddToCartButton(book)}
             </div>
