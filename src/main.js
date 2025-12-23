@@ -646,6 +646,9 @@ function renderUI() {
       </div>
     </div>
     <header>
+      <div class="logo-container">
+        <img src="/logo.png" alt="Logo" class="site-logo">
+      </div>
       <h1>${t.title}</h1>
       <p class="subtitle">${t.subtitle}</p>
       
