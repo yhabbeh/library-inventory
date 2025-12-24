@@ -58,6 +58,8 @@ const translations = {
     phoneNumber: 'Phone Number',
     address: 'Delivery Address',
     placeOrder: 'Place Order',
+    newItems: 'New Collection',
+    bestSellers: 'Best Sellers',
     orderSuccess: 'Thank you! Your order has been placed.',
     total: 'Total',
     items: 'items',
@@ -94,6 +96,8 @@ const translations = {
     phoneNumber: 'رقم الهاتف',
     address: 'عنوان التوصيل',
     placeOrder: 'تأكيد الطلب',
+    newItems: 'وصل حديثاً',
+    bestSellers: 'الأكثر مبيعاً',
     orderSuccess: 'شكراً لك! تم استلام طلبك بنجاح.',
     total: 'المجموع',
     items: 'عناصر',
@@ -133,25 +137,40 @@ function parseCSV(csv) {
   const result = [];
   const headers = lines[0].split(',');
 
-  // Headers: Title,Cost,Price,Profit,Availability,Column 8,Author,Category
+  // Headers: Title,Cost,Price,Profit,Availability,Column 8,Author,Category,Overview
   for (let i = 1; i < lines.length; i++) {
     if (!lines[i].trim()) continue;
 
     const currentLine = parseCSVLine(lines[i]);
     if (currentLine.length < 2) continue;
 
+    // "Column 8" is at index 5 in the CSV (0-based)
+    const manualImageCol = currentLine[5];
+    const isManualImage = manualImageCol && manualImageCol.startsWith('http');
+
     const book = {
       title: currentLine[0] || 'Unknown Title',
       cost: currentLine[1],
       price: currentLine[2],
+      profit: currentLine[3],
       availability: currentLine[4],
       author: currentLine[6] || 'Unknown Author',
       category: formatCategory(currentLine[7], currentLine[0]),
-      // Generate a placeholder image URL based on category color
-      image: getPlaceholderImage(currentLine[0], currentLine[7]),
-      isPlaceholder: true, // All our current items are placeholders as they lack real img URLs
-      brief: `Experience the captivating story of "${currentLine[0]}" by ${currentLine[6] || 'Unknown Author'}. An essential addition to any library collection.`
+      // Index 8 is now "Overview" based on recent CSV structure
+      overview: currentLine[8] || null,
+      manualImage: isManualImage ? manualImageCol : null,
+      brief: currentLine[8] || `Experience the captivating story of "${currentLine[0]}" by ${currentLine[6] || 'Unknown Author'}. An essential addition to any library collection.`
     };
+
+    // Logic to determine initial display state
+    if (book.manualImage) {
+      book.image = book.manualImage;
+      book.isPlaceholder = false;
+    } else {
+      book.image = getPlaceholderImage(book.title, book.category);
+      book.isPlaceholder = true; // Signals that we can try to auto-fetch
+    }
+
     result.push(book);
   }
   return result;
@@ -265,6 +284,11 @@ function renderBooks() {
   container.innerHTML = pageItems.map((book, index) => {
     // Find absolute index for modal
     const absoluteIndex = start + index;
+    // Generate attributes for auto-fetching if it's a placeholder
+    const fetchAttr = book.isPlaceholder
+      ? `data-book-title="${book.title.replace(/"/g, '&quot;')}" data-book-author="${(book.author || '').replace(/"/g, '&quot;')}" data-book-index="${absoluteIndex}"`
+      : '';
+
     const coverContent = book.isPlaceholder
       ? `<div class="placeholder-cover" style="--cover-bg: #${getCategoryColor(book.category)}">
            <div class="cover-title">${book.title}</div>
@@ -273,7 +297,7 @@ function renderBooks() {
 
     return `
       <div class="book-card" onclick="window.openModal(${absoluteIndex})">
-        <div class="book-img-container">
+        <div class="book-img-container" ${fetchAttr}>
           ${book.availability === '1' ? `<span class="status-badge in-stock">${t.inStock}</span>` : `<span class="status-badge out-of-stock">${t.outOfAvailability}</span>`}
           ${coverContent}
         </div>
@@ -293,6 +317,9 @@ function renderBooks() {
   }).join('');
 
   updatePagination(totalPages);
+
+  // Initialize lazy loader for covers after rendering
+  initCoverLoader();
 }
 
 function updatePagination(totalPages) {
@@ -324,7 +351,7 @@ window.setLanguage = (lang) => {
   categories = [allLabel, ...uniqueCategories];
   currentCategory = allLabel;
 
-  renderUI();
+  renderUI(); // Re-render everything to update titles and directions
 };
 
 window.setPage = (page) => {
@@ -617,7 +644,7 @@ window.openModal = (index) => {
     <div class="book-category">${book.category}</div>
     <h2>${book.title}</h2>
     <div class="book-author">${t.by} ${book.author}</div>
-    <div class="modal-brief">${t.briefTemplate(book.title, book.author)}</div>
+    <div class="modal-brief">${book.overview || t.briefTemplate(book.title, book.author)}</div>
     <div class="book-price" style="font-size: 2rem; margin-top: 1rem;">
       ${book.price && !isNaN(parseFloat(book.price)) ? `${t.pricePrefix}${parseFloat(book.price).toFixed(2)}` : t.priceOnRequest}
     </div>
@@ -657,6 +684,11 @@ function renderUI() {
         <input type="text" class="search-input" placeholder="${t.searchPlaceholder}" oninput="window.handleSearch(event)">
       </div>
     </header>
+
+    <div class="featured-wrapper">
+      <div id="best-sellers-section" class="featured-section"></div>
+      <div id="new-arrivals-section" class="featured-section"></div>
+    </div>
 
     <div id="categories" class="categories">
       <!-- Categories will be injected here -->
@@ -700,8 +732,197 @@ function renderUI() {
     </div>
   `;
 
+  renderBestSellers();
+  renderNewArrivals();
   renderCategories();
   renderBooks();
+
+  // Ensure loader runs for initial featured sections
+  initCoverLoader();
+}
+
+// --- Google Books Auto-Fetch Logic ---
+const imageCache = new Map(); // Cache URL to avoid re-fetching same book
+let coverObserver = null;
+
+function initCoverLoader() {
+  // Disconnect previous observer if exists to avoid duplicates
+  if (coverObserver) coverObserver.disconnect();
+
+  const options = {
+    root: null,
+    rootMargin: '100px', // Fetch a bit before they appear
+    threshold: 0.1
+  };
+
+  coverObserver = new IntersectionObserver((entries, observer) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const container = entry.target;
+        const title = container.dataset.bookTitle;
+        const author = container.dataset.bookAuthor;
+        const index = container.dataset.bookIndex;
+
+        if (title) { // Title is required
+          fetchBookCover(title, author, container, index);
+          observer.unobserve(container);
+        }
+      }
+    });
+  }, options);
+
+  // Observe all containers that need fetching
+  const containers = document.querySelectorAll('.book-img-container[data-book-title]');
+  containers.forEach(el => coverObserver.observe(el));
+}
+
+async function fetchBookCover(title, author, containerElement, bookIndex) {
+  // Construct a more specific query
+  let query = `intitle:${title}`;
+  if (author && author !== 'Unknown Author') {
+    query += `+inauthor:${author}`;
+  }
+
+  const cacheKey = query;
+
+  // Check RAM cache first
+  if (imageCache.has(cacheKey)) {
+    applyCoverImage(containerElement, imageCache.get(cacheKey), bookIndex);
+    return;
+  }
+
+  try {
+    const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=1`);
+    const data = await response.json();
+
+    if (data.items && data.items.length > 0) {
+      const info = data.items[0].volumeInfo;
+      // Prefer high-res if available, but thumbnail is standard
+      const imageLinks = info.imageLinks;
+
+      if (imageLinks) {
+        // Use standard thumbnail, force replace http with https
+        let imgUrl = imageLinks.thumbnail || imageLinks.smallThumbnail;
+        if (imgUrl) {
+          imgUrl = imgUrl.replace('http://', 'https://');
+          imageCache.set(cacheKey, imgUrl);
+          applyCoverImage(containerElement, imgUrl, bookIndex);
+        }
+      }
+    } else {
+      // No result found, mark as processed
+      containerElement.removeAttribute('data-book-title');
+    }
+  } catch (error) {
+    console.warn('Failed to fetch cover for:', title, error);
+  }
+}
+
+function applyCoverImage(container, url, index) {
+  // Update the data model so modal opening works instantly later
+  if (books[index]) {
+    books[index].image = url;
+    books[index].isPlaceholder = false;
+  }
+
+  // Update DOM using a fade-in effect
+  const img = new Image();
+  img.src = url;
+  img.className = 'book-img fade-in';
+  img.alt = books[index] ? books[index].title : 'Book Cover';
+
+  img.onload = () => {
+    container.innerHTML = ''; // Clear placeholder
+    // Re-add status badge if it existed
+    // Note: To keep it simple, we just re-render the inner content or prepend the badge.
+    // However, since we cleared innerHTML, we lost the badge. Let's reconstruct or simpler:
+    // Just replace the cover content.
+
+    // Better strategy: Hide the placeholder div and append the image
+    const placeholder = container.querySelector('.placeholder-cover');
+    if (placeholder) placeholder.style.display = 'none';
+
+    // Ensure badge stays
+    const badge = container.querySelector('.status-badge');
+
+    container.innerHTML = '';
+    if (badge) container.appendChild(badge);
+    container.appendChild(img);
+
+
+    // Remove attribute
+    container.removeAttribute('data-book-title');
+  };
+}
+
+function renderNewArrivals() {
+  const container = document.getElementById('new-arrivals-section');
+  const t = translations[currentLang];
+  if (!container || books.length === 0) return;
+
+  // Last 10 records
+  const newArrivals = books.slice(-5).reverse();
+
+  container.innerHTML = `
+    <h2 class="section-title">${t.newItems}</h2>
+    <div class="horizontal-scroll">
+      ${newArrivals.map((book, index) => renderBookCardSmall(book, books.indexOf(book))).join('')}
+    </div>
+  `;
+}
+
+function renderBestSellers() {
+  const container = document.getElementById('best-sellers-section');
+  const t = translations[currentLang];
+  if (!container || books.length === 0) return;
+
+  // Sort by profit (descending) as a proxy for "best sellers" or just "most valuable"
+  // If profit is missing, fall back to price.
+  const bestSellers = [...books]
+    .sort((a, b) => {
+      const profitA = parseFloat(a.profit) || parseFloat(a.price) || 0;
+      const profitB = parseFloat(b.profit) || parseFloat(b.price) || 0;
+      return profitB - profitA;
+    })
+    .slice(0, 3);
+
+  container.innerHTML = `
+    <h2 class="section-title">${t.bestSellers}</h2>
+    <div class="horizontal-scroll">
+      ${bestSellers.map((book, index) => renderBookCardSmall(book, books.indexOf(book))).join('')}
+    </div>
+  `;
+}
+
+function renderBookCardSmall(book, absoluteIndex) {
+  const t = translations[currentLang];
+
+  // Generate attributes for auto-fetching
+  const fetchAttr = book.isPlaceholder
+    ? `data-book-title="${book.title.replace(/"/g, '&quot;')}" data-book-author="${(book.author || '').replace(/"/g, '&quot;')}" data-book-index="${absoluteIndex}"`
+    : '';
+
+  const coverContent = book.isPlaceholder
+    ? `<div class="placeholder-cover small-cover" style="--cover-bg: #${getCategoryColor(book.category)}">
+         <div class="cover-title small-title">${book.title}</div>
+       </div>`
+    : `<img src="${book.image}" alt="${book.title}" class="book-img" loading="lazy">`;
+
+  return `
+    <div class="book-card small-card" onclick="window.openModal(${absoluteIndex})">
+      <div class="book-img-container small-img-container" ${fetchAttr}>
+        ${book.availability === '1' ? `<span class="status-badge in-stock">${t.inStock}</span>` : `<span class="status-badge out-of-stock">${t.outOfAvailability}</span>`}
+        ${coverContent}
+      </div>
+      <div class="book-info small-info">
+        <div class="book-category">${book.category}</div>
+        <div class="book-title">${book.title}</div>
+        <div class="card-actions">
+          <div class="book-price">${book.price && !isNaN(parseFloat(book.price)) ? `$${parseFloat(book.price).toFixed(2)}` : t.priceOnRequest}</div>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 // Initial Render Setup

@@ -1097,3 +1097,112 @@ h1 {
     margin-bottom: 0.5rem;
   }
 }
+
+/* Featured Sections (New Arrivals, Best Sellers) */
+.featured-wrapper {
+  display: flex;
+  gap: 2rem;
+  width: 100%;
+  margin-bottom: 3rem;
+}
+
+.featured-section {
+  width: 50%;
+  min-width: 0;
+  /* Prevents flex overflow */
+}
+
+@media (max-width: 768px) {
+  .featured-wrapper {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .featured-section {
+    width: 100%;
+    margin-bottom: 2rem;
+  }
+}
+
+.section-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  background: linear-gradient(to right, white, var(--text-muted));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  padding: 0 0.5rem;
+}
+
+.horizontal-scroll {
+  display: flex;
+  gap: 1.5rem;
+  overflow-x: auto;
+  padding: 1rem 0.5rem 2rem 0.5rem;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  scroll-snap-type: x mandatory;
+  width: 100%;
+  mask-image: linear-gradient(to right, transparent, black 2%, black 98%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 2%, black 98%, transparent);
+}
+
+.horizontal-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.horizontal-scroll .book-card {
+  min-width: 180px;
+  width: 180px;
+  scroll-snap-align: start;
+}
+
+/* Small Card Variant */
+.small-card {
+  /* Inherits book-card styles but we can override specifics if needed */
+  background: rgba(18, 18, 23, 0.4);
+}
+
+.small-img-container {
+  height: 220px;
+}
+
+.small-cover {
+  padding: 1.5rem;
+}
+
+.small-title {
+  font-size: 0.9rem;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+.small-info {
+  padding: 0.8rem;
+}
+
+.small-info .book-title {
+  font-size: 1rem;
+}
+
+.small-info .card-actions {
+  margin-top: 0.5rem;
+}
+
+/* Image Fade In Animation */
+@keyframes fadeInImg {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.fade-in {
+  animation: fadeInImg 0.5s ease forwards;
+}
