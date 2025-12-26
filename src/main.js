@@ -519,8 +519,26 @@ window.toggleTheme = () => {
   currentTheme = currentTheme === 'light' ? 'dark' : 'light';
   document.documentElement.setAttribute('data-theme', currentTheme);
   localStorage.setItem('theme', currentTheme);
-  renderUI(); // Re-render to update toggle icon
+  // No need to re-render whole UI, just toggle classes potentially? 
+  // For simplicity keeping renderUI but it might be jarring. 
+  // Optimizing: Just update the button state if possible, but renderUI is safer for consistency.
+  renderUI();
 };
+
+window.toggleLangDropdown = () => {
+  const menu = document.getElementById('lang-menu');
+  const trigger = document.querySelector('.lang-trigger');
+  menu.classList.toggle('open');
+  trigger.classList.toggle('active');
+};
+
+// Close dropdown when clicking outside
+window.addEventListener('click', (e) => {
+  const wrapper = document.querySelector('.lang-dropdown-wrapper');
+  if (wrapper && !wrapper.contains(e.target)) {
+    document.getElementById('lang-menu')?.classList.remove('open');
+  }
+});
 
 function filterBooks() {
   const allLabel = translations[currentLang].all;
@@ -848,11 +866,11 @@ window.openModal = (index) => {
         
         <div class="modal-actions">
            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem;">
-             <div class="book-price" style="font-size: 2rem;">
+             <div class="book-price modal-price-lg">
               ${book.price && !isNaN(parseFloat(book.price)) ? `${book.price}` : t.priceOnRequest}
              </div>
            </div>
-           ${renderAddToCartButton(book).replace('add-btn', 'btn-primary').replace('<span>+</span>', t.addToCart).replace('qty-controls', 'qty-controls style="background:rgba(255,255,255,0.1); padding:0.8rem 1.5rem;"')}
+           ${renderAddToCartButton(book).replace('add-btn', 'btn-primary').replace('<span>+</span>', t.addToCart).replace('qty-controls', 'qty-controls modal-qty-controls')}
         </div>
       </div>
     </div>
@@ -866,7 +884,7 @@ window.openModal = (index) => {
     // Start fresh for 'Add to Cart' big button
     modalContent.querySelector('.modal-actions').innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem;">
-           <div class="book-price" style="font-size: 2rem;">
+           <div class="book-price modal-price-lg">
             ${book.price && !isNaN(parseFloat(book.price)) ? `${book.price}` : t.priceOnRequest}
            </div>
         </div>
@@ -876,10 +894,7 @@ window.openModal = (index) => {
     // It shows controls, we just need to style them bigger
     const controlsDiv = modalContent.querySelector('.qty-controls');
     if (controlsDiv) {
-      controlsDiv.style.width = '100%';
-      controlsDiv.style.justifyContent = 'space-between';
-      controlsDiv.style.padding = '1rem';
-      controlsDiv.style.background = 'rgba(255,255,255,0.05)';
+      controlsDiv.classList.add('modal-qty-controls-override');
     }
   }
 
@@ -893,30 +908,46 @@ window.closeModal = () => {
 function renderUI() {
   const t = translations[currentLang];
   document.getElementById('app').innerHTML = `
-    <header>
-      <div class="header-top-bar">
+    <header class="sticky-header">
+      <div class="header-container">
         <div class="logo-container">
           <img src="/logo.png" alt="Logo" class="site-logo">
         </div>
         
         <div class="header-actions">
-           <button class="icon-btn theme-btn" onclick="window.toggleTheme()" title="Toggle Theme">
-             ${currentTheme === 'dark' ? '☀️' : '🌙'}
+           <!-- Dynamic Theme Toggle -->
+           <button class="icon-btn theme-btn-animated" onclick="window.toggleTheme()" aria-label="Toggle Theme">
+             <span class="theme-icon-sun">☀️</span>
+             <span class="theme-icon-moon">🌙</span>
            </button>
-           <div class="lang-switcher">
-            <button class="icon-btn lang-btn ${currentLang === 'en' ? 'active' : ''}" onclick="window.setLanguage('en')">EN</button>
-            <button class="icon-btn lang-btn ${currentLang === 'ar' ? 'active' : ''}" onclick="window.setLanguage('ar')">AR</button>
-          </div>
+
+           <!-- Language Dropdown -->
+           <div class="lang-dropdown-wrapper">
+             <button class="lang-trigger" onclick="window.toggleLangDropdown()">
+               <span class="curr-lang">${currentLang.toUpperCase()}</span>
+               <svg class="dropdown-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1L5 5L9 1"/></svg>
+             </button>
+             <div id="lang-menu" class="lang-menu">
+               <button class="lang-item ${currentLang === 'en' ? 'active' : ''}" onclick="window.setLanguage('en')">English</button>
+               <button class="lang-item ${currentLang === 'ar' ? 'active' : ''}" onclick="window.setLanguage('ar')">العربية</button>
+             </div>
+           </div>
+
           <div class="cart-trigger icon-btn" onclick="window.toggleCart()">
             <span class="cart-icon">🛒</span>
             <span id="cart-badge" class="cart-badge" style="display: ${cart.length > 0 ? 'flex' : 'none'}">${cart.reduce((a, b) => a + b.quantity, 0)}</span>
           </div>
         </div>
       </div>
-
-      <h1>${t.title}</h1>
-      <p class="subtitle">${t.subtitle}</p>
     </header>
+
+    <div class="hero-section animated-hero">
+      <div class="hero-content">
+        <h1 class="hero-title animate-enter">${t.title}</h1>
+        <p class="subtitle animate-enter-delay">${t.subtitle}</p>
+      </div>
+      <div class="hero-mesh"></div>
+    </div>
 
     <div class="featured-wrapper">
       <div id="best-sellers-section" class="featured-section"></div>
@@ -934,7 +965,7 @@ function renderUI() {
       <div id="categories" class="categories">
         <!-- Categories will be injected here -->
       </div>
-      <div id="sub-categories" class="categories sub-categories" style="display:none; margin-top: -1rem; background: var(--primary-light); padding: 1rem; border-radius: var(--radius-md);">
+      <div id="sub-categories" class="categories sub-categories" style="display:none">
         <!-- Sub-categories injected here -->
       </div>
     </div>
