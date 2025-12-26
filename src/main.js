@@ -5,13 +5,19 @@ const ORDER_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwQOHwQmOYCTg1D3
 
 let books = [];
 let filteredBooks = [];
+
 let categories = ['All'];
+let subCategoriesMap = {}; // { Parent: [{ label: "Child", value: "FullCat" }] }
+let categoryHierarchy = {}; // { FullCat: Parent }
 let currentCategory = 'All';
+let currentSubCategory = null;
 let searchQuery = '';
 let currentLang = 'ar'; // Default to Arabic as per data
 let currentPage = 1;
 const ITEMS_PER_PAGE = 100;
 let cart = JSON.parse(localStorage.getItem('cart') || '[]');
+let currentTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+document.documentElement.setAttribute('data-theme', currentTheme);
 // Migration: Ensure all cart items have a quantity (if they were from the old array-based system)
 cart = cart.map(item => ({ ...item, quantity: item.quantity || 1 }));
 // deduplicate by title if multiple instances existed
@@ -111,11 +117,13 @@ async function fetchBooks() {
     const csvData = await response.text();
     books = parseCSV(csvData);
 
-    // Generate categories
-    const uniqueCategories = [...new Set(books.map(b => b.category).filter(Boolean))];
+    // Generate categories and hierarchy
+    processCategories(books);
+
+    // Initial state
     const allLabel = translations[currentLang].all;
-    categories = [allLabel, ...uniqueCategories];
     currentCategory = allLabel;
+    currentSubCategory = null;
 
     filteredBooks = books;
     renderUI();
@@ -246,6 +254,89 @@ function getCategoryColor(category) {
   return colors.default;
 }
 
+function processCategories(allBooks) {
+  const allLabel = translations[currentLang].all;
+  const uniqueFullCats = [...new Set(allBooks.map(b => b.category).filter(Boolean))];
+
+  // 1. Identify potential parents (roots)
+  const parents = new Set();
+  const orphans = [];
+
+  uniqueFullCats.forEach(cat => {
+    if (cat.includes(' / ')) {
+      parents.add(cat.split(' / ')[0].trim());
+    } else {
+      orphans.push(cat);
+    }
+  });
+
+  // Add self-contained categories if they are substrings of others
+  orphans.forEach(orphan => {
+    const isParent = uniqueFullCats.some(c => c !== orphan && c.includes(orphan));
+    if (isParent) parents.add(orphan);
+  });
+
+  const subCats = {}; // Parent -> Set of { label, value }
+  const hierarchy = {}; // FullCat -> Parent
+
+  uniqueFullCats.forEach(fullCat => {
+    let assignedParent = null;
+    let displayLabel = fullCat;
+
+    // 1. Explicit slash check
+    if (fullCat.includes(' / ')) {
+      const parts = fullCat.split(' / ');
+      assignedParent = parts[0].trim();
+      displayLabel = parts.slice(1).join(' / ').trim();
+    }
+    // 2. Fuzzy match
+    else {
+      const potential = Array.from(parents).filter(p => fullCat.includes(p) && fullCat !== p);
+      if (potential.length > 0) {
+        potential.sort((a, b) => b.length - a.length);
+        assignedParent = potential[0];
+        displayLabel = fullCat.replace(assignedParent, '').trim();
+      }
+    }
+
+    // 3. Fallback
+    if (!assignedParent) {
+      assignedParent = fullCat;
+      displayLabel = null;
+    }
+
+    hierarchy[fullCat] = assignedParent;
+
+    if (!subCats[assignedParent]) subCats[assignedParent] = [];
+
+    if (displayLabel) {
+      displayLabel = displayLabel.replace(/^[\/\-\s]+|[\/\-\s]+$/g, '');
+      if (displayLabel) {
+        subCats[assignedParent].push({ label: displayLabel, value: fullCat });
+      }
+    }
+  });
+
+  // Finalize
+  const uniqueParents = [...new Set(Object.values(hierarchy))].sort();
+  categories = [allLabel, ...uniqueParents];
+
+  categoryHierarchy = hierarchy;
+  subCategoriesMap = {};
+
+  for (const [p, list] of Object.entries(subCats)) {
+    const uniqueChildren = [];
+    const seen = new Set();
+    list.forEach(item => {
+      if (!seen.has(item.label)) {
+        seen.add(item.label);
+        uniqueChildren.push(item);
+      }
+    });
+    subCategoriesMap[p] = uniqueChildren.sort((a, b) => a.label.localeCompare(b.label));
+  }
+}
+
 function renderCategories() {
   const container = document.getElementById('categories');
   if (!container) return;
@@ -256,6 +347,53 @@ function renderCategories() {
       ${cat}
     </div>
   `).join('');
+
+  renderSubCategories();
+}
+
+function renderSubCategories() {
+  const container = document.getElementById('sub-categories');
+  if (!container) return;
+
+  const allLabel = translations[currentLang].all;
+
+  // Only show subcategories if a specific parent is selected (not All)
+  // AND that parent has subcategories
+  if (currentCategory === allLabel || !subCategoriesMap[currentCategory]) {
+    container.style.display = 'none';
+    container.innerHTML = '';
+    return;
+  }
+
+  const subs = subCategoriesMap[currentCategory];
+  if (subs.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+
+  // Show container
+  container.style.display = 'flex';
+
+  // "All" equivalent for subcategories (using the filtered parent set)
+  const allSub = currentLang === 'ar' ? 'الكل' : 'All';
+
+  let html = `
+    <div class="category-pill ${currentSubCategory === null ? 'active' : ''}" 
+         onclick="window.setSubCategory(null)" 
+         style="font-size: 0.8rem; padding: 0.4rem 0.8rem;">
+      ${allSub}
+    </div>
+  `;
+
+  html += subs.map(sub => `
+    <div class="category-pill ${sub.value === currentSubCategory ? 'active' : ''}" 
+         onclick="window.setSubCategory('${sub.value}')"
+         style="font-size: 0.8rem; padding: 0.4rem 0.8rem;">
+      ${sub.label}
+    </div>
+  `).join('');
+
+  container.innerHTML = html;
 }
 
 function renderBooks() {
@@ -266,7 +404,7 @@ function renderBooks() {
   if (!container) return;
 
   if (filteredBooks.length === 0) {
-    container.innerHTML = `<div class="no-results">${currentLang === 'ar' ? 'لم يتم العثور على نتائج' : 'No books found'}</div>`;
+    container.innerHTML = `<div class="no-results" style="grid-column: 1 / -1; text-align:center; padding: 4rem; color: var(--text-muted); font-size: 1.2rem; background: var(--bg-surface); border-radius: var(--radius-md); border: 1px solid var(--glass-border);">${currentLang === 'ar' ? 'لم يتم العثور على نتائج' : 'No books found'}</div>`;
     countElement.innerText = `0 ${t.itemsFound}`;
     updatePagination(0);
     return;
@@ -282,9 +420,7 @@ function renderBooks() {
   countElement.innerText = `${filteredBooks.length} ${t.itemsFound}`;
 
   container.innerHTML = pageItems.map((book, index) => {
-    // Find absolute index for modal
     const absoluteIndex = start + index;
-    // Generate attributes for auto-fetching if it's a placeholder
     const fetchAttr = book.isPlaceholder
       ? `data-book-title="${book.title.replace(/"/g, '&quot;')}" data-book-author="${(book.author || '').replace(/"/g, '&quot;')}" data-book-index="${absoluteIndex}"`
       : '';
@@ -306,7 +442,7 @@ function renderBooks() {
           <div class="book-title">${book.title}</div>
           <div class="book-author">${book.author}</div>
           <div class="card-actions">
-            <div class="book-price">${book.price && !isNaN(parseFloat(book.price)) ? `$${parseFloat(book.price).toFixed(2)}` : t.priceOnRequest}</div>
+            <div class="book-price">${book.price && !isNaN(parseFloat(book.price)) ? `${book.price}` : t.priceOnRequest}</div>
             <div class="cart-action-wrapper" onclick="event.stopPropagation()">
               ${renderAddToCartButton(book)}
             </div>
@@ -317,8 +453,6 @@ function renderBooks() {
   }).join('');
 
   updatePagination(totalPages);
-
-  // Initialize lazy loader for covers after rendering
   initCoverLoader();
 }
 
@@ -346,10 +480,12 @@ window.setLanguage = (lang) => {
   document.documentElement.lang = lang;
 
   // Re-generate categories list based on new "All" translation
-  const uniqueCategories = [...new Set(books.map(b => b.category).filter(Boolean))];
+  processCategories(books);
+
+  // Reset selection to All to avoid mismatches
   const allLabel = translations[currentLang].all;
-  categories = [allLabel, ...uniqueCategories];
   currentCategory = allLabel;
+  currentSubCategory = null;
 
   renderUI(); // Re-render everything to update titles and directions
 };
@@ -362,8 +498,15 @@ window.setPage = (page) => {
 
 window.setCategory = (cat) => {
   currentCategory = cat;
+  currentSubCategory = null; // Reset sub-category when parent changes
   filterBooks();
   renderCategories();
+};
+
+window.setSubCategory = (sub) => {
+  currentSubCategory = sub;
+  filterBooks();
+  renderCategories(); // Re-render to update active state
 };
 
 window.handleSearch = (e) => {
@@ -372,13 +515,38 @@ window.handleSearch = (e) => {
   filterBooks();
 };
 
+window.toggleTheme = () => {
+  currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', currentTheme);
+  localStorage.setItem('theme', currentTheme);
+  renderUI(); // Re-render to update toggle icon
+};
+
 function filterBooks() {
   const allLabel = translations[currentLang].all;
   filteredBooks = books.filter(book => {
-    const matchesCategory = currentCategory === allLabel || book.category === currentCategory;
+    // Category Matching Logic
+    let matchesCategory = false;
+
+    if (currentCategory === allLabel) {
+      matchesCategory = true;
+    } else {
+      // Hierarchical Check
+      const bookParent = categoryHierarchy[book.category];
+
+      if (bookParent === currentCategory) {
+        if (currentSubCategory === null) {
+          matchesCategory = true;
+        } else {
+          matchesCategory = book.category === currentSubCategory;
+        }
+      }
+    }
+
     const matchesSearch = book.title.toLowerCase().includes(searchQuery) ||
       book.author.toLowerCase().includes(searchQuery) ||
-      book.category.toLowerCase().includes(searchQuery);
+      (book.category || '').toLowerCase().includes(searchQuery);
+
     return matchesCategory && matchesSearch;
   });
   renderBooks();
@@ -403,13 +571,13 @@ function renderAddToCartButton(book) {
     return `
       <div class="qty-controls">
         <button class="qty-btn minus" onclick="window.decrementQuantity('${book.title.replace(/'/g, "\\'")}')">−</button>
-        <span class="qty-val">${cartItem.quantity}</span>
+        <span class="qty-val" style="color:white; font-weight:700;">${cartItem.quantity}</span>
         <button class="qty-btn" onclick="window.incrementQuantity('${book.title.replace(/'/g, "\\'")}')">+</button>
       </div>
     `;
   }
   return `
-    <button class="add-to-cart-btn-sm" onclick="window.addToCartByTitle('${book.title.replace(/'/g, "\\'")}')">
+    <button class="add-btn" onclick="window.addToCartByTitle('${book.title.replace(/'/g, "\\'")}')">
       <span>+</span>
     </button>
   `;
@@ -423,8 +591,8 @@ window.addToCart = (index) => {
 window.addToCartByTitle = (title) => {
   window.incrementQuantity(title);
   // Automatically open cart to show success
-  const modal = document.getElementById('cart-modal');
-  if (modal.style.display !== 'flex') {
+  const modal = document.getElementById('cart-drawer');
+  if (!modal.classList.contains('open')) {
     window.toggleCart();
   }
 };
@@ -459,7 +627,7 @@ window.decrementQuantity = (title) => {
 
 function updateOpenModals(title) {
   // Update cart modal if open
-  if (document.getElementById('cart-modal').style.display === 'flex') {
+  if (document.getElementById('cart-drawer').classList.contains('open')) {
     renderCartModal();
   }
 
@@ -475,21 +643,33 @@ function updateOpenModals(title) {
 }
 
 window.toggleCart = () => {
-  const modal = document.getElementById('cart-modal');
-  if (modal.style.display === 'flex') {
-    modal.style.display = 'none';
+  const overlay = document.getElementById('cart-drawer');
+  const drawer = overlay.querySelector('.cart-drawer');
+
+  if (overlay.classList.contains('open')) {
+    overlay.classList.remove('open');
+    drawer.classList.remove('open');
+    setTimeout(() => {
+      overlay.style.visibility = 'hidden';
+    }, 300);
   } else {
+    overlay.style.visibility = 'visible';
+    // Force reflow
+    overlay.offsetHeight;
+    overlay.classList.add('open');
+    drawer.classList.add('open');
     renderCartModal();
-    modal.style.display = 'flex';
   }
 };
 
 function renderCartModal() {
   const container = document.getElementById('cart-content');
+  const footer = document.getElementById('cart-footer');
   const t = translations[currentLang];
 
   if (cart.length === 0) {
-    container.innerHTML = `<div class="empty-cart-msg">${t.emptyCart}</div>`;
+    container.innerHTML = `<div style="text-align:center; padding: 4rem 1rem; color:var(--text-muted);">${t.emptyCart}</div>`;
+    footer.innerHTML = '';
     return;
   }
 
@@ -500,57 +680,70 @@ function renderCartModal() {
     <div class="cart-items">
       ${cart.map(item => `
         <div class="cart-item">
-          <img src="${item.image}" alt="${item.title}">
-          <div class="cart-item-info">
-            <h4>${item.title}</h4>
-            <p>${item.price && !isNaN(parseFloat(item.price)) ? `$${parseFloat(item.price).toFixed(2)}` : t.priceOnRequest}</p>
-          </div>
-          <div class="qty-controls">
-            <button class="qty-btn minus" onclick="window.decrementQuantity('${item.title.replace(/'/g, "\\'")}')">−</button>
-            <span class="qty-val">${item.quantity}</span>
-            <button class="qty-btn" onclick="window.incrementQuantity('${item.title.replace(/'/g, "\\'")}')">+</button>
+          <img src="${item.image}" alt="${item.title}" class="cart-item-img" onerror="this.src='data:image/svg+xml;base64,...'"> 
+          <div class="cart-item-info" style="flex:1;">
+            <h4 class="cart-item-title" style="font-size:0.95rem; line-height:1.3;">${item.title}</h4>
+            <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:0.5rem;">${item.price && !isNaN(parseFloat(item.price)) ? `$${parseFloat(item.price).toFixed(2)}` : t.priceOnRequest}</p>
+            <div class="qty-controls">
+                <button class="qty-btn minus" onclick="window.decrementQuantity('${item.title.replace(/'/g, "\\'")}')">−</button>
+                <span class="qty-val">${item.quantity}</span>
+                <button class="qty-btn" onclick="window.incrementQuantity('${item.title.replace(/'/g, "\\'")}')">+</button>
+            </div>
           </div>
         </div>
       `).join('')}
     </div>
-    <div class="cart-footer">
-      <div class="cart-summary-row">
+  `;
+
+  footer.innerHTML = `
+      <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem; font-weight:500; color:var(--text-secondary);">
         <span>${t.items}:</span>
         <span>${totalItems}</span>
       </div>
-      <div class="cart-total">
+      <div style="display:flex; justify-content:space-between; margin-bottom:1.5rem; font-size:1.25rem; font-weight:700; color:var(--text-primary);">
         <span>${t.total}:</span>
         <span>$${total.toFixed(2)}</span>
       </div>
-      <button class="primary-btn checkout-btn" onclick="window.openCheckout()">${t.checkout}</button>
-    </div>
+      <button class="btn-primary" onclick="window.openCheckout()">${t.checkout}</button>
   `;
 }
 
 window.openCheckout = () => {
-  document.getElementById('cart-modal').style.display = 'none';
+  // Close cart drawer
+  window.toggleCart();
+
+  // Open checkout modal
   const modal = document.getElementById('checkout-modal');
   const t = translations[currentLang];
-
   const content = document.getElementById('checkout-content');
+
   content.innerHTML = `
-    <form id="checkout-form" onsubmit="window.handleOrder(event)">
-      <div class="form-group">
-        <label>${t.fullName}</label>
-        <input type="text" name="name" required placeholder="John Doe">
-      </div>
-      <div class="form-group">
-        <label>${t.phoneNumber}</label>
-        <input type="tel" name="phone" required placeholder="+1 234 567 890">
-      </div>
-      <div class="form-group">
-        <label>${t.address}</label>
-        <textarea name="address" required placeholder="123 Luxury Ave, City"></textarea>
-      </div>
-      <button type="submit" class="primary-btn submit-order-btn">${t.placeOrder}</button>
-    </form>
-  `;
+      <form id="checkout-form" onsubmit="window.handleOrder(event)" class="checkout-container">
+        <div class="form-group">
+          <label>${t.fullName}</label>
+          <input type="text" name="name" class="form-control" required placeholder="John Doe">
+        </div>
+        <div class="form-group">
+          <label>${t.phoneNumber}</label>
+          <input type="tel" name="phone" class="form-control" required placeholder="+1 234 567 890">
+        </div>
+        <div class="form-group">
+          <label>${t.address}</label>
+          <textarea name="address" class="form-control" required placeholder="123 Luxury Ave, City"></textarea>
+        </div>
+        
+        <div style="background: var(--bg-body); padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1.5rem;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem; font-weight:600;">
+                <span>${t.total}:</span>
+                <span>$${cart.reduce((sum, item) => sum + (parseFloat(item.price) || 0) * item.quantity, 0).toFixed(2)}</span>
+            </div>
+        </div>
+
+        <button type="submit" class="btn-primary submit-order-btn" style="width:100%; padding: 1rem;">${t.placeOrder}</button>
+      </form>
+    `;
   modal.style.display = 'flex';
+  setTimeout(() => modal.classList.add('open'), 10);
 };
 
 window.handleOrder = async (e) => {
@@ -624,65 +817,105 @@ window.closeCheckout = () => {
 window.openModal = (index) => {
   const book = filteredBooks[index];
   const modal = document.getElementById('modal');
-  const details = document.getElementById('modal-details');
   const t = translations[currentLang];
 
   const modalCover = book.isPlaceholder
     ? `<div class="placeholder-cover modal-placeholder" style="--cover-bg: #${getCategoryColor(book.category)}">
          <div class="cover-title">${book.title}</div>
        </div>`
-    : `<img src="${book.image}" alt="${book.title}" class="modal-img" id="modal-img">`;
+    : `<img src="${book.image}" alt="${book.title}" class="modal-img-lg" id="modal-img">`;
 
-  // Update modal structure to handle potential div cover
-  const modalContent = document.querySelector('.modal-content');
-  const existingCover = modalContent.querySelector('.modal-img, .modal-placeholder');
-  if (existingCover) existingCover.remove();
-  modalContent.insertAdjacentHTML('afterbegin', modalCover);
+  // We are using the new split layout
+  const modalContent = modal.querySelector('.modal-content');
 
-  details.innerHTML = `
-    <button class="modal-close" onclick="window.closeModal()">&times;</button>
-    <div class="book-category">${book.category}</div>
-    <h2>${book.title}</h2>
-    <div class="book-author">${t.by} ${book.author}</div>
-    <div class="modal-brief">${book.overview || t.briefTemplate(book.title, book.author)}</div>
-    <div class="book-price" style="font-size: 2rem; margin-top: 1rem;">
-      ${book.price && !isNaN(parseFloat(book.price)) ? `${t.pricePrefix}${parseFloat(book.price).toFixed(2)}` : t.priceOnRequest}
-    </div>
-    <div style="margin-top: 2rem;" class="modal-cart-action">
-      ${renderAddToCartButton(book)}
+  modalContent.innerHTML = `
+    <div class="modal-split-layout">
+      <div class="modal-left">
+         ${modalCover}
+      </div>
+      <div class="modal-right">
+        <button class="modal-close" onclick="window.closeModal()">&times;</button>
+        <div class="book-category">${book.category}</div>
+        <h2 class="modal-title">${book.title}</h2>
+        <div class="modal-meta">
+          <span>${t.by} <strong style="color:white;">${book.author}</strong></span>
+          ${book.availability === '1' ? `<span style="color:var(--success); font-weight:700;">${t.inStock}</span>` : `<span style="color:var(--error); font-weight:700;">${t.outOfAvailability}</span>`}
+        </div>
+        
+        <div class="modal-desc">
+          ${book.overview || t.briefTemplate(book.title, book.author)}
+        </div>
+        
+        <div class="modal-actions">
+           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem;">
+             <div class="book-price" style="font-size: 2rem;">
+              ${book.price && !isNaN(parseFloat(book.price)) ? `${book.price}` : t.priceOnRequest}
+             </div>
+           </div>
+           ${renderAddToCartButton(book).replace('add-btn', 'btn-primary').replace('<span>+</span>', t.addToCart).replace('qty-controls', 'qty-controls style="background:rgba(255,255,255,0.1); padding:0.8rem 1.5rem;"')}
+        </div>
+      </div>
     </div>
   `;
-  modal.style.display = 'flex';
+
+  // Hacky replacement above to reuse renderAddToCartButton logic but style it for modal. 
+  // Ideally renderAddToCartButton should take context, but string replace works for now to swap class/content
+  // Re-adjusting the replacement to be safer:
+  const cartBtnHtml = renderAddToCartButton(book);
+  if (cartBtnHtml.includes('add-btn')) {
+    // Start fresh for 'Add to Cart' big button
+    modalContent.querySelector('.modal-actions').innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem;">
+           <div class="book-price" style="font-size: 2rem;">
+            ${book.price && !isNaN(parseFloat(book.price)) ? `${book.price}` : t.priceOnRequest}
+           </div>
+        </div>
+        <button class="btn-primary" onclick="window.addToCartByTitle('${book.title.replace(/'/g, "\\'")}')">${t.addToCart}</button>
+     `;
+  } else {
+    // It shows controls, we just need to style them bigger
+    const controlsDiv = modalContent.querySelector('.qty-controls');
+    if (controlsDiv) {
+      controlsDiv.style.width = '100%';
+      controlsDiv.style.justifyContent = 'space-between';
+      controlsDiv.style.padding = '1rem';
+      controlsDiv.style.background = 'rgba(255,255,255,0.05)';
+    }
+  }
+
+  modal.classList.add('open');
 };
 
 window.closeModal = () => {
-  document.getElementById('modal').style.display = 'none';
+  document.getElementById('modal').classList.remove('open');
 };
 
 function renderUI() {
   const t = translations[currentLang];
   document.getElementById('app').innerHTML = `
-    <div class="header-actions">
-      <div class="lang-switcher">
-        <button class="${currentLang === 'en' ? 'active' : ''}" onclick="window.setLanguage('en')">EN</button>
-        <button class="${currentLang === 'ar' ? 'active' : ''}" onclick="window.setLanguage('ar')">AR</button>
-      </div>
-      <div class="cart-trigger" onclick="window.toggleCart()">
-        <span class="cart-icon">🛒</span>
-        <span id="cart-badge" class="cart-badge" style="display: ${cart.length > 0 ? 'flex' : 'none'}">${cart.length}</span>
-      </div>
-    </div>
     <header>
-      <div class="logo-container">
-        <img src="/logo.png" alt="Logo" class="site-logo">
+      <div class="header-top-bar">
+        <div class="logo-container">
+          <img src="/logo.png" alt="Logo" class="site-logo">
+        </div>
+        
+        <div class="header-actions">
+           <button class="icon-btn theme-btn" onclick="window.toggleTheme()" title="Toggle Theme">
+             ${currentTheme === 'dark' ? '☀️' : '🌙'}
+           </button>
+           <div class="lang-switcher">
+            <button class="icon-btn lang-btn ${currentLang === 'en' ? 'active' : ''}" onclick="window.setLanguage('en')">EN</button>
+            <button class="icon-btn lang-btn ${currentLang === 'ar' ? 'active' : ''}" onclick="window.setLanguage('ar')">AR</button>
+          </div>
+          <div class="cart-trigger icon-btn" onclick="window.toggleCart()">
+            <span class="cart-icon">🛒</span>
+            <span id="cart-badge" class="cart-badge" style="display: ${cart.length > 0 ? 'flex' : 'none'}">${cart.reduce((a, b) => a + b.quantity, 0)}</span>
+          </div>
+        </div>
       </div>
+
       <h1>${t.title}</h1>
       <p class="subtitle">${t.subtitle}</p>
-      
-      <div class="search-container">
-        <span class="search-icon">🔍</span>
-        <input type="text" class="search-input" placeholder="${t.searchPlaceholder}" oninput="window.handleSearch(event)">
-      </div>
     </header>
 
     <div class="featured-wrapper">
@@ -690,10 +923,22 @@ function renderUI() {
       <div id="new-arrivals-section" class="featured-section"></div>
     </div>
 
-    <div id="categories" class="categories">
-      <!-- Categories will be injected here -->
+    <div class="filter-section" style="margin-bottom: 2rem;">
+      <div class="search-container">
+        <input type="text" class="search-input" placeholder="${t.searchPlaceholder}" oninput="window.handleSearch(event)">
+        <span class="search-icon">
+             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        </span>
+      </div>
+      
+      <div id="categories" class="categories">
+        <!-- Categories will be injected here -->
+      </div>
+      <div id="sub-categories" class="categories sub-categories" style="display:none; margin-top: -1rem; background: var(--primary-light); padding: 1rem; border-radius: var(--radius-md);">
+        <!-- Sub-categories injected here -->
+      </div>
     </div>
-
+    
     <div id="result-count" style="text-align: center; margin-bottom: 2rem; color: var(--text-muted); font-size: 0.9rem;">
       ${t.loading}
     </div>
@@ -706,27 +951,29 @@ function renderUI() {
 
     <div id="modal" class="modal-overlay" onclick="if(event.target === this) window.closeModal()">
       <div class="modal-content">
-        <img id="modal-img" class="modal-img" src="" alt="">
-        <div id="modal-details" class="modal-details"></div>
+        <!-- Injected via openModal -->
       </div>
     </div>
 
-    <div id="cart-modal" class="modal-overlay cart-overlay" onclick="if(event.target === this) window.toggleCart()">
-      <div class="cart-sidebar">
-        <div class="cart-header">
-          <h3>${t.cart}</h3>
-          <button class="close-cart" onclick="window.toggleCart()">&times;</button>
+    <div id="cart-drawer" class="cart-overlay" onclick="if(event.target === this) window.toggleCart()">
+      <div class="cart-drawer">
+        <div class="drawer-header">
+           <h3 class="drawer-title">${t.cart}</h3>
+           <button class="drawer-close" onclick="window.toggleCart()">&times;</button>
         </div>
-        <div id="cart-content" class="cart-content-area"></div>
+        <div id="cart-content" class="drawer-content"></div>
+        <div id="cart-footer" class="drawer-footer"></div>
       </div>
     </div>
 
     <div id="checkout-modal" class="modal-overlay" onclick="if(event.target === this) window.closeCheckout()">
-      <div class="modal-content checkout-modal-content">
-        <div class="modal-details">
-          <button class="modal-close" onclick="window.closeCheckout()">&times;</button>
-          <h2>${t.checkout}</h2>
-          <div id="checkout-content"></div>
+      <div class="modal-content checkout-modal">
+        <div class="checkout-form">
+           <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+             <h2>${t.checkout}</h2>
+             <button class="modal-close" style="position:static" onclick="window.closeCheckout()">&times;</button>
+           </div>
+           <div id="checkout-content"></div>
         </div>
       </div>
     </div>
@@ -736,8 +983,6 @@ function renderUI() {
   renderNewArrivals();
   renderCategories();
   renderBooks();
-
-  // Ensure loader runs for initial featured sections
   initCoverLoader();
 }
 
