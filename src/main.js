@@ -404,7 +404,7 @@ function renderBooks() {
   if (!container) return;
 
   if (filteredBooks.length === 0) {
-    container.innerHTML = `<div class="no-results" style="grid-column: 1 / -1; text-align:center; padding: 4rem; color: var(--text-muted); font-size: 1.2rem; background: var(--bg-surface); border-radius: var(--radius-md); border: 1px solid var(--glass-border);">${currentLang === 'ar' ? 'لم يتم العثور على نتائج' : 'No books found'}</div>`;
+    container.innerHTML = `<div class="no-results" style="grid-column: 1 / -1; text-align:center; padding: 4rem; color: var(--text-muted); font-size: 1.2rem; background: var(--bg-surface); border-radius: var(--radius-md); border: 1px solid var(--border-color);">${currentLang === 'ar' ? 'لم يتم العثور على نتائج' : 'No books found'}</div>`;
     countElement.innerText = `0 ${t.itemsFound}`;
     updatePagination(0);
     return;
@@ -421,35 +421,7 @@ function renderBooks() {
 
   container.innerHTML = pageItems.map((book, index) => {
     const absoluteIndex = start + index;
-    const fetchAttr = book.isPlaceholder
-      ? `data-book-title="${book.title.replace(/"/g, '&quot;')}" data-book-author="${(book.author || '').replace(/"/g, '&quot;')}" data-book-index="${absoluteIndex}"`
-      : '';
-
-    const coverContent = book.isPlaceholder
-      ? `<div class="placeholder-cover" style="--cover-bg: #${getCategoryColor(book.category)}">
-           <div class="cover-title">${book.title}</div>
-         </div>`
-      : `<img src="${book.image}" alt="${book.title}" class="book-img" loading="lazy">`;
-
-    return `
-      <div class="book-card" onclick="window.openModal(${absoluteIndex})">
-        <div class="book-img-container" ${fetchAttr}>
-          ${book.availability === '1' ? `<span class="status-badge in-stock">${t.inStock}</span>` : `<span class="status-badge out-of-stock">${t.outOfAvailability}</span>`}
-          ${coverContent}
-        </div>
-        <div class="book-info">
-          <div class="book-category">${book.category}</div>
-          <div class="book-title">${book.title}</div>
-          <div class="book-author">${book.author}</div>
-          <div class="card-actions">
-            <div class="book-price">${book.price && !isNaN(parseFloat(book.price)) ? `${book.price}` : t.priceOnRequest}</div>
-            <div class="cart-action-wrapper" onclick="event.stopPropagation()">
-              ${renderAddToCartButton(book)}
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
+    return renderBookCard(book, absoluteIndex, index);
   }).join('');
 
   updatePagination(totalPages);
@@ -554,21 +526,58 @@ function filterBooks() {
 
       if (bookParent === currentCategory) {
         if (currentSubCategory === null) {
-          matchesCategory = true;
-        } else {
           matchesCategory = book.category === currentSubCategory;
         }
       }
     }
 
-    const matchesSearch = book.title.toLowerCase().includes(searchQuery) ||
-      book.author.toLowerCase().includes(searchQuery) ||
+    const matchesSearch = (book.title || '').toLowerCase().includes(searchQuery) ||
+      (book.author || '').toLowerCase().includes(searchQuery) ||
       (book.category || '').toLowerCase().includes(searchQuery);
 
     return matchesCategory && matchesSearch;
   });
   renderBooks();
 }
+
+function renderBookCard(book, absoluteIndex, pageIndex) {
+  const t = translations[currentLang];
+  const isAvailable = book.availability === '1';
+
+  const fetchAttr = book.isPlaceholder
+    ? `data-book-title="${book.title.replace(/"/g, '&quot;')}" data-book-author="${(book.author || '').replace(/"/g, '&quot;')}" data-book-index="${absoluteIndex}"`
+    : '';
+
+  const coverContent = book.isPlaceholder
+    ? `<div class="placeholder-cover" style="--cover-bg: #${getCategoryColor(book.category)}">
+         <div class="cover-title">${book.title}</div>
+       </div>`
+    : `<img src="${book.image}" alt="${book.title}" class="book-img" loading="lazy">`;
+
+  return `
+    <div class="book-card reveal" style="--item-index: ${pageIndex % 10}" onclick="window.openModal(${absoluteIndex})">
+      <div class="book-img-container" ${fetchAttr}>
+        <span class="status-badge ${isAvailable ? 'in-stock' : 'out-of-stock'}">
+          ${isAvailable ? t.inStock : t.outOfAvailability}
+        </span>
+        ${coverContent}
+      </div>
+      <div class="book-info">
+        <div class="book-category">${book.category}</div>
+        <div class="book-title">${book.title}</div>
+        <div class="book-author">${book.author}</div>
+        <div class="card-actions">
+          <div class="book-price">${book.price && !isNaN(parseFloat(book.price)) ? `${book.price}` : t.priceOnRequest}</div>
+          <div class="cart-action-wrapper" onclick="event.stopPropagation()">
+            ${renderAddToCartButton(book)}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+
 
 function saveCart() {
   localStorage.setItem('cart', JSON.stringify(cart));
@@ -587,18 +596,18 @@ function renderAddToCartButton(book) {
   const cartItem = cart.find(item => item.title === book.title);
   if (cartItem) {
     return `
-      <div class="qty-controls">
-        <button class="qty-btn minus" onclick="window.decrementQuantity('${book.title.replace(/'/g, "\\'")}')">−</button>
-        <span class="qty-val" style="color:white; font-weight:700;">${cartItem.quantity}</span>
-        <button class="qty-btn" onclick="window.incrementQuantity('${book.title.replace(/'/g, "\\'")}')">+</button>
-      </div>
+    <div class="qty-controls">
+      <button class="qty-btn minus" onclick="window.decrementQuantity('${book.title.replace(/'/g, "\\'")}')">−</button>
+      <span class="qty-val" style="color:inherit; font-weight:700;">${cartItem.quantity}</span>
+      <button class="qty-btn" onclick="window.incrementQuantity('${book.title.replace(/'/g, "\\'")}')">+</button>
+    </div>
     `;
   }
   return `
     <button class="add-btn" onclick="window.addToCartByTitle('${book.title.replace(/'/g, "\\'")}')">
       <span>+</span>
     </button>
-  `;
+    `;
 }
 
 window.addToCart = (index) => {
@@ -686,7 +695,7 @@ function renderCartModal() {
   const t = translations[currentLang];
 
   if (cart.length === 0) {
-    container.innerHTML = `<div style="text-align:center; padding: 4rem 1rem; color:var(--text-muted);">${t.emptyCart}</div>`;
+    container.innerHTML = `<div style="text-align:center; padding: 4rem 1rem; color:var(--text-secondary);">${t.emptyCart}</div>`;
     footer.innerHTML = '';
     return;
   }
@@ -698,10 +707,10 @@ function renderCartModal() {
     <div class="cart-items">
       ${cart.map(item => `
         <div class="cart-item">
-          <img src="${item.image}" alt="${item.title}" class="cart-item-img" onerror="this.src='data:image/svg+xml;base64,...'"> 
+          <img src="${item.image}" alt="${item.title}" class="cart-item-img"> 
           <div class="cart-item-info" style="flex:1;">
-            <h4 class="cart-item-title" style="font-size:0.95rem; line-height:1.3;">${item.title}</h4>
-            <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:0.5rem;">${item.price && !isNaN(parseFloat(item.price)) ? `$${parseFloat(item.price).toFixed(2)}` : t.priceOnRequest}</p>
+            <h4 class="cart-item-title">${item.title}</h4>
+            <p style="color:var(--text-secondary); font-size:0.85rem; margin-bottom:0.5rem;">${item.price && !isNaN(parseFloat(item.price)) ? `${item.price}` : t.priceOnRequest}</p>
             <div class="qty-controls">
                 <button class="qty-btn minus" onclick="window.decrementQuantity('${item.title.replace(/'/g, "\\'")}')">−</button>
                 <span class="qty-val">${item.quantity}</span>
@@ -711,10 +720,10 @@ function renderCartModal() {
         </div>
       `).join('')}
     </div>
-  `;
+    `;
 
   footer.innerHTML = `
-      <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem; font-weight:500; color:var(--text-secondary);">
+    <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem; font-weight:500; color:var(--text-secondary);">
         <span>${t.items}:</span>
         <span>${totalItems}</span>
       </div>
@@ -736,7 +745,7 @@ window.openCheckout = () => {
   const content = document.getElementById('checkout-content');
 
   content.innerHTML = `
-      <form id="checkout-form" onsubmit="window.handleOrder(event)" class="checkout-container">
+    <form id="checkout-form" onsubmit="window.handleOrder(event)" class="checkout-container">
         <div class="form-group">
           <label>${t.fullName}</label>
           <input type="text" name="name" class="form-control" required placeholder="John Doe">
@@ -750,14 +759,14 @@ window.openCheckout = () => {
           <textarea name="address" class="form-control" required placeholder="123 Luxury Ave, City"></textarea>
         </div>
         
-        <div style="background: var(--bg-body); padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1.5rem;">
+        <div style="background: var(--bg-surface); padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1.5rem;">
             <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem; font-weight:600;">
                 <span>${t.total}:</span>
-                <span>$${cart.reduce((sum, item) => sum + (parseFloat(item.price) || 0) * item.quantity, 0).toFixed(2)}</span>
+                <span>${cart.reduce((sum, item) => sum + (parseFloat(item.price) || 0) * item.quantity, 0).toFixed(2)}€</span>
             </div>
         </div>
 
-        <button type="submit" class="btn-primary submit-order-btn" style="width:100%; padding: 1rem;">${t.placeOrder}</button>
+        <button type="submit" class="btn-primary" style="width:100%">${t.placeOrder}</button>
       </form>
     `;
   modal.style.display = 'flex';
@@ -809,12 +818,12 @@ window.handleOrder = async (e) => {
       <div class="order-success">
         <div class="success-icon">✓</div>
         <h3>${t.orderSuccess}</h3>
-        <p style="color: var(--text-muted); margin-bottom: 2rem;">
+        <p style="color: var(--text-secondary); margin-bottom: 2rem;">
           ${currentLang === 'ar' ? 'تم تسجيل طلبك وإرسال إشعار بالبريد الإلكتروني.' : 'Your order has been recorded and an email notification has been sent.'}
         </p>
-        <button class="primary-btn" onclick="window.closeCheckout(); location.reload();">${t.close}</button>
+        <button class="btn-primary" onclick="window.closeCheckout(); location.reload();">${t.close}</button>
       </div>
-    `;
+      `;
 
     // Clear cart
     cart = [];
@@ -856,8 +865,8 @@ window.openModal = (index) => {
         <div class="book-category">${book.category}</div>
         <h2 class="modal-title">${book.title}</h2>
         <div class="modal-meta">
-          <span>${t.by} <strong style="color:white;">${book.author}</strong></span>
-          ${book.availability === '1' ? `<span style="color:var(--success); font-weight:700;">${t.inStock}</span>` : `<span style="color:var(--error); font-weight:700;">${t.outOfAvailability}</span>`}
+          <span>${t.by} <strong style="color:var(--text-primary);">${book.author}</strong></span>
+          ${book.availability === '1' ? `<span style="color:var(--success-text); font-weight:700;">${t.inStock}</span>` : `<span style="color:var(--error-text); font-weight:700;">${t.outOfAvailability}</span>`}
         </div>
         
         <div class="modal-desc">
@@ -870,26 +879,25 @@ window.openModal = (index) => {
               ${book.price && !isNaN(parseFloat(book.price)) ? `${book.price}` : t.priceOnRequest}
              </div>
            </div>
-           ${renderAddToCartButton(book).replace('add-btn', 'btn-primary').replace('<span>+</span>', t.addToCart).replace('qty-controls', 'qty-controls modal-qty-controls')}
+           <button class="btn-primary" onclick="window.addToCartByTitle('${book.title.replace(/'/g, "\\'")}')">${t.addToCart}</button>
         </div>
       </div>
     </div>
-  `;
+    `;
 
   // Hacky replacement above to reuse renderAddToCartButton logic but style it for modal. 
   // Ideally renderAddToCartButton should take context, but string replace works for now to swap class/content
   // Re-adjusting the replacement to be safer:
   const cartBtnHtml = renderAddToCartButton(book);
-  if (cartBtnHtml.includes('add-btn')) {
-    // Start fresh for 'Add to Cart' big button
+  if (!cartBtnHtml.includes('qty-controls')) {
     modalContent.querySelector('.modal-actions').innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem;">
-           <div class="book-price modal-price-lg">
-            ${book.price && !isNaN(parseFloat(book.price)) ? `${book.price}` : t.priceOnRequest}
-           </div>
-        </div>
-        <button class="btn-primary" onclick="window.addToCartByTitle('${book.title.replace(/'/g, "\\'")}')">${t.addToCart}</button>
-     `;
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem;">
+      <div class="book-price modal-price-lg">
+        ${book.price && !isNaN(parseFloat(book.price)) ? `${book.price}€` : t.priceOnRequest}
+      </div>
+    </div>
+    <button class="btn-primary" onclick="window.addToCartByTitle('${book.title.replace(/'/g, "\\'")}')">${t.addToCart}</button>
+    `;
   } else {
     // It shows controls, we just need to style them bigger
     const controlsDiv = modalContent.querySelector('.qty-controls');
@@ -908,37 +916,37 @@ window.closeModal = () => {
 function renderUI() {
   const t = translations[currentLang];
   document.getElementById('app').innerHTML = `
-    <header class="sticky-header">
-      <div class="header-container">
-        <div class="logo-container">
-          <img src="/logo.png" alt="Logo" class="site-logo">
-        </div>
-        
-        <div class="header-actions">
-           <!-- Dynamic Theme Toggle -->
-           <button class="icon-btn theme-btn-animated" onclick="window.toggleTheme()" aria-label="Toggle Theme">
-             <span class="theme-icon-sun">☀️</span>
-             <span class="theme-icon-moon">🌙</span>
-           </button>
+      <header class="sticky-header">
+        <div class="header-container">
+          <div class="logo-container">
+            <img src="/logo.png" alt="Logo" class="site-logo">
+          </div>
 
-           <!-- Language Dropdown -->
-           <div class="lang-dropdown-wrapper">
-             <button class="lang-trigger" onclick="window.toggleLangDropdown()">
-               <span class="curr-lang">${currentLang.toUpperCase()}</span>
-               <svg class="dropdown-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1L5 5L9 1"/></svg>
-             </button>
-             <div id="lang-menu" class="lang-menu">
-               <button class="lang-item ${currentLang === 'en' ? 'active' : ''}" onclick="window.setLanguage('en')">English</button>
-               <button class="lang-item ${currentLang === 'ar' ? 'active' : ''}" onclick="window.setLanguage('ar')">العربية</button>
-             </div>
-           </div>
+          <div class="header-actions">
+            <!-- Dynamic Theme Toggle -->
+            <button class="icon-btn theme-btn-animated" onclick="window.toggleTheme()" aria-label="Toggle Theme">
+              <span class="theme-icon-sun">☀️</span>
+              <span class="theme-icon-moon">🌙</span>
+            </button>
 
-          <div class="cart-trigger icon-btn" onclick="window.toggleCart()">
-            <span class="cart-icon">🛒</span>
-            <span id="cart-badge" class="cart-badge" style="display: ${cart.length > 0 ? 'flex' : 'none'}">${cart.reduce((a, b) => a + b.quantity, 0)}</span>
+            <!-- Language Dropdown -->
+            <div class="lang-dropdown-wrapper">
+              <button class="lang-trigger" onclick="window.toggleLangDropdown()">
+                <span class="curr-lang">${currentLang.toUpperCase()}</span>
+                <svg class="dropdown-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1L5 5L9 1" /></svg>
+              </button>
+              <div id="lang-menu" class="lang-menu">
+                <button class="lang-item ${currentLang === 'en' ? 'active' : ''}" onclick="window.setLanguage('en')">English</button>
+                <button class="lang-item ${currentLang === 'ar' ? 'active' : ''}" onclick="window.setLanguage('ar')">العربية</button>
+              </div>
+            </div>
+
+            <div class="cart-trigger icon-btn" onclick="window.toggleCart()">
+              <span class="cart-icon">🛒</span>
+              <span id="cart-badge" class="cart-badge" style="display: ${cart.length > 0 ? 'flex' : 'none'}">${cart.reduce((a, b) => a + b.quantity, 0)}</span>
+            </div>
           </div>
         </div>
-      </div>
     </header>
 
     <div class="hero-section animated-hero">
@@ -949,12 +957,10 @@ function renderUI() {
       <div class="hero-mesh"></div>
     </div>
 
-    <div class="featured-wrapper">
-      <div id="best-sellers-section" class="featured-section"></div>
-      <div id="new-arrivals-section" class="featured-section"></div>
-    </div>
+    <div id="best-sellers-section" class="featured-section reveal"></div>
+    <div id="new-arrivals-section" class="featured-section reveal"></div>
 
-    <div class="filter-section" style="margin-bottom: 2rem;">
+    <div class="filter-section reveal">
       <div class="search-container">
         <input type="text" class="search-input" placeholder="${t.searchPlaceholder}" oninput="window.handleSearch(event)">
         <span class="search-icon">
@@ -970,7 +976,7 @@ function renderUI() {
       </div>
     </div>
     
-    <div id="result-count" style="text-align: center; margin-bottom: 2rem; color: var(--text-muted); font-size: 0.9rem;">
+    <div id="result-count" class="result-count">
       ${t.loading}
     </div>
 
@@ -979,6 +985,8 @@ function renderUI() {
     </div>
 
     <div id="pagination" class="pagination"></div>
+
+    ${renderFooter()}
 
     <div id="modal" class="modal-overlay" onclick="if(event.target === this) window.closeModal()">
       <div class="modal-content">
@@ -1008,13 +1016,14 @@ function renderUI() {
         </div>
       </div>
     </div>
-  `;
+    `;
 
   renderBestSellers();
   renderNewArrivals();
   renderCategories();
   renderBooks();
   initCoverLoader();
+  initRevealObserver();
 }
 
 // --- Google Books Auto-Fetch Logic ---
@@ -1054,9 +1063,9 @@ function initCoverLoader() {
 
 async function fetchBookCover(title, author, containerElement, bookIndex) {
   // Construct a more specific query
-  let query = `intitle:${title}`;
+  let query = `intitle:${title} `;
   if (author && author !== 'Unknown Author') {
-    query += `+inauthor:${author}`;
+    query += `+ inauthor:${author} `;
   }
 
   const cacheKey = query;
@@ -1136,14 +1145,15 @@ function renderNewArrivals() {
   const t = translations[currentLang];
   if (!container || books.length === 0) return;
 
-  // Last 10 records
-  const newArrivals = books.slice(-5).reverse();
+  const newArrivals = books.slice(-10).reverse();
 
   container.innerHTML = `
     <h2 class="section-title">${t.newItems}</h2>
-    <div class="horizontal-scroll">
-      ${newArrivals.map((book, index) => renderBookCardSmall(book, books.indexOf(book))).join('')}
-    </div>
+    <div class="horizontal-scroll-container">
+       <div class="horizontal-scroll">
+        ${newArrivals.map((book, index) => renderBookCardSmall(book, books.indexOf(book))).join('')}
+      </div>
+     </div>
   `;
 }
 
@@ -1152,22 +1162,80 @@ function renderBestSellers() {
   const t = translations[currentLang];
   if (!container || books.length === 0) return;
 
-  // Sort by profit (descending) as a proxy for "best sellers" or just "most valuable"
-  // If profit is missing, fall back to price.
   const bestSellers = [...books]
     .sort((a, b) => {
       const profitA = parseFloat(a.profit) || parseFloat(a.price) || 0;
       const profitB = parseFloat(b.profit) || parseFloat(b.price) || 0;
       return profitB - profitA;
     })
-    .slice(0, 3);
+    .slice(0, 10);
 
   container.innerHTML = `
     <h2 class="section-title">${t.bestSellers}</h2>
-    <div class="horizontal-scroll">
-      ${bestSellers.map((book, index) => renderBookCardSmall(book, books.indexOf(book))).join('')}
-    </div>
+    <div class="horizontal-scroll-container">
+       <div class="horizontal-scroll">
+        ${bestSellers.map((book, index) => renderBookCardSmall(book, books.indexOf(book))).join('')}
+      </div>
+     </div>
   `;
+}
+
+// --- Dynamic Interactions & Observer ---
+
+window.scrollCarousel = (btn, direction) => {
+  const container = btn.parentElement.querySelector('.horizontal-scroll');
+  const scrollAmount = container.clientWidth * 0.8;
+  container.scrollBy({
+    left: direction * scrollAmount,
+    behavior: 'smooth'
+  });
+};
+
+function initRevealObserver() {
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        // Optional: stop observing after reveal
+        // observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+}
+
+function renderFooter() {
+  const t = translations[currentLang];
+  return `
+      <footer class="site-footer reveal">
+        <div class="footer-content">
+          <div class="footer-brand">
+            <h3>Bookstore Premium</h3>
+            <p>${t.subtitle || 'Your gateway to a world of stories.'}</p>
+          </div>
+          <div class="footer-links">
+            <h4>Shop</h4>
+            <ul>
+              <li><a href="#">Best Sellers</a></li>
+              <li><a href="#">New Arrivals</a></li>
+              <li><a href="#">Categories</a></li>
+            </ul>
+          </div>
+          <div class="footer-links">
+            <h4>About</h4>
+            <ul>
+              <li><a href="#">Our Story</a></li>
+              <li><a href="#">Shipping Policy</a></li>
+              <li><a href="#">Privacy Policy</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          &copy; ${new Date().getFullYear()} Bookstore Premium. All rights reserved.
+        </div>
+      </footer>
+    `;
 }
 
 function renderBookCardSmall(book, absoluteIndex) {
@@ -1187,7 +1255,7 @@ function renderBookCardSmall(book, absoluteIndex) {
   return `
     <div class="book-card small-card" onclick="window.openModal(${absoluteIndex})">
       <div class="book-img-container small-img-container" ${fetchAttr}>
-        ${book.availability === '1' ? `<span class="status-badge in-stock">${t.inStock}</span>` : `<span class="status-badge out-of-stock">${t.outOfAvailability}</span>`}
+        ${book.availability === '1' ? `<span class="status-badge in-stock">${t.inStock}</span>` : `<span class="status-badge out-of-availability">${t.outOfAvailability}</span>`}
         ${coverContent}
       </div>
       <div class="book-info small-info">
