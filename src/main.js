@@ -1006,14 +1006,12 @@ function renderUI() {
     </div>
 
     <div id="checkout-modal" class="modal-overlay" onclick="if(event.target === this) window.closeCheckout()">
-      <div class="modal-content checkout-modal">
-        <div class="checkout-form">
-           <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-             <h2>${t.checkout}</h2>
-             <button class="modal-close" style="position:static" onclick="window.closeCheckout()">&times;</button>
-           </div>
-           <div id="checkout-content"></div>
-        </div>  
+      <div class="checkout-form">
+         <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+           <h2 class="modal-title" style="margin-bottom:0">${t.checkout}</h2>
+           <button class="modal-close" style="position:static" onclick="window.closeCheckout()">&times;</button>
+         </div>
+         <div id="checkout-content"></div>
       </div>
     </div>
     `;
