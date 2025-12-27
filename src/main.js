@@ -48,7 +48,10 @@ const translations = {
     reserveNow: 'Reserve Now',
     by: 'By',
     briefTemplate: (title, author) => `Experience the captivating story of "${title}" by ${author}. An essential addition to any library collection.`,
-    pricePrefix: '$',
+    pricePrefix: 'JOD',
+    fullNamePlaceholder: 'Mohammad Ahmad',
+    phoneNumberPlaceholder: '+962 77 123 456',
+    addressPlaceholder: '123 Amman, Jordan, st. ----',
     errorTitle: 'Failed to load inventory',
     errorText: 'Please check your connection or the spreadsheet sharing settings.',
     retry: 'Retry',
@@ -86,13 +89,16 @@ const translations = {
     reserveNow: 'احجز الآن',
     by: 'بواسطة',
     briefTemplate: (title, author) => `استمتع بتجربة القصة الآسرة لـ "${title}" بقلم ${author}. إضافة أساسية لأي مجموعة مكتبية.`,
-    pricePrefix: '$',
+    pricePrefix: 'دينار',
     errorTitle: 'فشل تحميل المخزون',
     errorText: 'يرجى التحقق من الاتصال أو إعدادات مشاركة جدول البيانات.',
     retry: 'إعادة المحاولة',
     dir: 'rtl',
     prev: 'السابق',
     next: 'التالي',
+    fullNamePlaceholder: 'محمد أحمد',
+    phoneNumberPlaceholder: '+962 77 123 456',
+    addressPlaceholder: 'عمان, الأردن, شارع النعمان',
     pageOf: (current, total) => `صفحة ${current} من ${total}`,
     addToCart: 'إضافة إلى السلة',
     cart: 'سلة التسوق',
@@ -710,7 +716,7 @@ function renderCartModal() {
           <img src="${item.image}" alt="${item.title}" class="cart-item-img"> 
           <div class="cart-item-info" style="flex:1;">
             <h4 class="cart-item-title">${item.title}</h4>
-            <p style="color:var(--text-secondary); font-size:0.85rem; margin-bottom:0.5rem;">${item.price && !isNaN(parseFloat(item.price)) ? `${item.price}` : t.priceOnRequest}</p>
+            <p style="color:var(--text-secondary); font-size:0.85rem; margin-bottom:0.5rem;">${item.price && !isNaN(parseFloat(item.price)) ? `${item.price}` : t.priceOnRequest} ${translations[currentLang].pricePrefix}</p>
             <div class="qty-controls">
                 <button class="qty-btn minus" onclick="window.decrementQuantity('${item.title.replace(/'/g, "\\'")}')">−</button>
                 <span class="qty-val">${item.quantity}</span>
@@ -729,7 +735,7 @@ function renderCartModal() {
       </div>
       <div style="display:flex; justify-content:space-between; margin-bottom:1.5rem; font-size:1.25rem; font-weight:700; color:var(--text-primary);">
         <span>${t.total}:</span>
-        <span>$${total.toFixed(2)}</span>
+        <span>${total.toFixed(2)}   ${translations[currentLang].pricePrefix}</span>
       </div>
       <button class="btn-primary" onclick="window.openCheckout()">${t.checkout}</button>
   `;
@@ -748,21 +754,21 @@ window.openCheckout = () => {
     <form id="checkout-form" onsubmit="window.handleOrder(event)" class="checkout-container">
         <div class="form-group">
           <label>${t.fullName}</label>
-          <input type="text" name="name" class="form-control" required placeholder="John Doe">
+          <input type="text" name="name" class="form-control" required placeholder=${t.fullNamePlaceholder}>
         </div>
         <div class="form-group">
           <label>${t.phoneNumber}</label>
-          <input type="tel" name="phone" class="form-control" required placeholder="+1 234 567 890">
-        </div>
+          <input type="tel" name="phone" class="form-control" required placeholder=${t.phoneNumberPlaceholder}>
+        </div>  
         <div class="form-group">
           <label>${t.address}</label>
-          <textarea name="address" class="form-control" required placeholder="123 Luxury Ave, City"></textarea>
+          <textarea name="address" class="form-control" required placeholder=${t.addressPlaceholder}></textarea>
         </div>
         
         <div style="background: var(--bg-surface); padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1.5rem;">
             <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem; font-weight:600;">
                 <span>${t.total}:</span>
-                <span>${cart.reduce((sum, item) => sum + (parseFloat(item.price) || 0) * item.quantity, 0).toFixed(2)}€</span>
+                <span>${cart.reduce((sum, item) => sum + (parseFloat(item.price) || 0) * item.quantity, 0).toFixed(2)} ${translations[currentLang].pricePrefix}</span>
             </div>
         </div>
 
@@ -893,7 +899,7 @@ window.openModal = (index) => {
     modalContent.querySelector('.modal-actions').innerHTML = `
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem;">
       <div class="book-price modal-price-lg">
-        ${book.price && !isNaN(parseFloat(book.price)) ? `${book.price}€` : t.priceOnRequest}
+        ${book.price && !isNaN(parseFloat(book.price)) ? `${book.price} ${translations[currentLang].pricePrefix}` : t.priceOnRequest}
       </div>
     </div>
     <button class="btn-primary" onclick="window.addToCartByTitle('${book.title.replace(/'/g, "\\'")}')">${t.addToCart}</button>
