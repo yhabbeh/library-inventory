@@ -1013,7 +1013,7 @@ function renderUI() {
              <button class="modal-close" style="position:static" onclick="window.closeCheckout()">&times;</button>
            </div>
            <div id="checkout-content"></div>
-        </div>
+        </div>  
       </div>
     </div>
     `;

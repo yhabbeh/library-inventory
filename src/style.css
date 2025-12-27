@@ -252,22 +252,19 @@ header.sticky-header {
   gap: 1rem;
 }
 
-/* --- Dynamic Living Hero Section --- */
+/* --- Animated Hero Section --- */
 
 .hero-section {
   position: relative;
   text-align: center;
-  padding: 8rem 4rem 6rem;
+  padding: 6rem 1.5rem 4rem;
   margin-bottom: 2rem;
   background: transparent;
-  overflow: hidden;
-  min-height: 60vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  overflow: visible;
+  /* Ensure it has a subtle base */
 }
 
-/* Animated Gradient Orbs */
+/* Mesmerizing Animated Background */
 .hero-section::before,
 .hero-section::after {
   content: '';
@@ -277,158 +274,70 @@ header.sticky-header {
   top: -50%;
   left: 50%;
   transform: translate(-50%, -20%) scale(1.5);
-  background:
-    radial-gradient(circle at 50% 50%, rgba(79, 70, 229, 0.3), transparent 50%),
-    radial-gradient(circle at 100% 0%, rgba(14, 165, 233, 0.2), transparent 50%),
-    radial-gradient(circle at 0% 100%, rgba(236, 72, 153, 0.15), transparent 50%);
-  filter: blur(80px);
+  background: radial-gradient(circle at 50% 50%, rgba(79, 70, 229, 0.25), transparent 70%),
+    radial-gradient(circle at 100% 0%, rgba(14, 165, 233, 0.15), transparent 60%),
+    radial-gradient(circle at 0% 100%, rgba(236, 72, 153, 0.1), transparent 60%);
+  filter: blur(100px);
   z-index: 0;
-  animation: gradient-float 15s ease-in-out infinite alternate;
+  animation: gradient-flow 12s ease-in-out infinite alternate;
   pointer-events: none;
-  will-change: transform;
 }
 
 .hero-section::after {
-  animation: gradient-float-reverse 20s ease-in-out infinite alternate-reverse;
-  background:
-    radial-gradient(circle at 80% 20%, rgba(99, 102, 241, 0.2), transparent 40%),
-    radial-gradient(circle at 20% 80%, rgba(14, 165, 233, 0.15), transparent 50%);
-  mix-blend-mode: screen;
+  animation-direction: alternate-reverse;
+  animation-duration: 20s;
+  background: radial-gradient(circle at 20% 80%, rgba(99, 102, 241, 0.1), transparent 50%);
+  mix-blend-mode: overlay;
 }
 
-@keyframes gradient-float {
-
-  0%,
-  100% {
+@keyframes gradient-flow {
+  0% {
     transform: translate(-50%, -20%) scale(1.5) rotate(0deg);
-    opacity: 1;
   }
 
-  33% {
-    transform: translate(-45%, -25%) scale(1.6) rotate(3deg);
-    opacity: 0.8;
-  }
-
-  66% {
-    transform: translate(-55%, -22%) scale(1.55) rotate(-2deg);
-    opacity: 0.9;
-  }
-}
-
-@keyframes gradient-float-reverse {
-
-  0%,
   100% {
-    transform: translate(-50%, -15%) scale(1.4) rotate(0deg);
-  }
-
-  50% {
-    transform: translate(-50%, -30%) scale(1.7) rotate(-5deg);
+    transform: translate(-50%, -25%) scale(1.6) rotate(5deg);
   }
 }
 
 .hero-content {
   position: relative;
   z-index: 1;
-  max-width: 900px;
 }
 
 .hero-title {
   font-family: 'Playfair Display', serif;
-  font-size: 5.5rem;
+  font-size: 5rem;
   font-weight: 800;
   margin-bottom: 1.5rem;
   color: var(--text-primary);
-  line-height: 1.05;
+  line-height: 1.5;
   letter-spacing: -0.04em;
-  background: linear-gradient(135deg, var(--text-primary) 20%, var(--primary) 60%, var(--accent) 100%);
+  background: linear-gradient(135deg, var(--text-primary) 30%, var(--primary) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   display: inline-block;
-  padding-bottom: 0.2rem;
+  padding-top: 1.2rem;
+  padding-bottom: 0.5rem;
   opacity: 0;
-  text-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
-  animation: title-entrance 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.3s forwards;
-}
-
-@keyframes title-entrance {
-  0% {
-    opacity: 0;
-    transform: translateY(40px) scale(0.95);
-    filter: blur(10px);
-  }
-
-  60% {
-    transform: translateY(-5px) scale(1.02);
-  }
-
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
-  }
+  text-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+  /* Handled by animation class */
 }
 
 .hero-section .subtitle {
   font-family: 'Inter', sans-serif;
   color: var(--text-secondary);
-  font-size: 1.35rem;
+  font-size: 1.25rem;
   line-height: 1.6;
   width: 100%;
-  max-width: 600px;
   margin: 0 auto;
   font-weight: 400;
   opacity: 0;
-  text-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  animation: subtitle-entrance 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.6s forwards;
+  text-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
-@keyframes subtitle-entrance {
-  0% {
-    opacity: 0;
-    transform: translateY(30px);
-    filter: blur(5px);
-  }
-
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-    filter: blur(0);
-  }
-}
-
-/* Floating Particles Effect */
-.hero-section .hero-content::before {
-  content: '';
-  position: absolute;
-  width: 300%;
-  height: 300%;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background-image:
-    radial-gradient(circle, rgba(79, 70, 229, 0.05) 1px, transparent 1px),
-    radial-gradient(circle, rgba(14, 165, 233, 0.04) 1px, transparent 1px);
-  background-size: 50px 50px, 80px 80px;
-  background-position: 0 0, 25px 25px;
-  animation: particles-drift 60s linear infinite;
-  z-index: -1;
-  pointer-events: none;
-  opacity: 0.6;
-}
-
-@keyframes particles-drift {
-  0% {
-    transform: translate(-50%, -50%) rotate(0deg);
-  }
-
-  100% {
-    transform: translate(-50%, -50%) rotate(360deg);
-  }
-}
-
-/* Legacy class support */
+/* Entrance Animations */
 .animate-enter {
   animation: fadeInUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
@@ -886,7 +795,8 @@ header.sticky-header {
   font-size: 1rem;
   color: var(--text-primary);
   margin-bottom: 0.25rem;
-  line-height: 1.4;
+  line-height: 1.6;
+  min-height: 3.2em;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
@@ -1521,7 +1431,12 @@ header.sticky-header {
 .horizontal-scroll .book-title {
   font-size: 1rem;
   font-weight: 600;
-  white-space: nowrap;
+  line-height: 1.5;
+  min-height: 3em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
 }
