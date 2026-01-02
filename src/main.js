@@ -386,6 +386,7 @@ function renderBooks() {
   }).join('');
 
   updatePagination(totalPages);
+  initRevealObserver(); // Re-run observer for new elements
 }
 
 function updatePagination(totalPages) {
@@ -407,6 +408,7 @@ function updatePagination(totalPages) {
 
 // Global functions for events
 window.setLanguage = (lang) => {
+  if (currentLang === lang) return;
   currentLang = lang;
   document.documentElement.dir = translations[lang].dir;
   document.documentElement.lang = lang;
@@ -419,7 +421,8 @@ window.setLanguage = (lang) => {
   currentCategory = allLabel;
   currentSubCategory = null;
 
-  renderUI(); // Re-render everything to update titles and directions
+  // Instead of full renderUI, we update translatable parts
+  updateUIVisuals();
 };
 
 window.setPage = (page) => {
@@ -441,20 +444,21 @@ window.setSubCategory = (sub) => {
   renderCategories(); // Re-render to update active state
 };
 
+let searchTimeout;
 window.handleSearch = (e) => {
-  searchQuery = e.target.value.toLowerCase();
-  currentPage = 1;
-  filterBooks();
+  const query = e.target.value.toLowerCase();
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => {
+    searchQuery = query;
+    currentPage = 1;
+    filterBooks();
+  }, 250);
 };
 
 window.toggleTheme = () => {
   currentTheme = currentTheme === 'light' ? 'dark' : 'light';
   document.documentElement.setAttribute('data-theme', currentTheme);
   localStorage.setItem('theme', currentTheme);
-  // No need to re-render whole UI, just toggle classes potentially? 
-  // For simplicity keeping renderUI but it might be jarring. 
-  // Optimizing: Just update the button state if possible, but renderUI is safer for consistency.
-  renderUI();
 };
 
 window.toggleLangDropdown = () => {
@@ -504,7 +508,7 @@ function renderBookCard(book, absoluteIndex, pageIndex) {
   const isAvailable = book.availability === '1';
 
   return `
-    <div class="book-card reveal" style="--item-index: ${pageIndex % 10}" onclick="window.openModal(${absoluteIndex})">
+    <div class="book-card reveal" data-title="${book.title.replace(/"/g, '&quot;')}" style="--item-index: ${pageIndex % 10}" onclick="window.openModal(${absoluteIndex})">
       <div class="book-info">
         <div class="status-badge-container">
           <span class="status-badge ${isAvailable ? 'in-stock' : 'out-of-stock'}">
@@ -580,7 +584,7 @@ window.incrementQuantity = (title) => {
   }
   saveCart();
   updateCartBadge();
-  renderBooks();
+  updateBookCardUI(title);
   updateOpenModals(title);
 };
 
@@ -594,9 +598,20 @@ window.decrementQuantity = (title) => {
   }
   saveCart();
   updateCartBadge();
-  renderBooks();
+  updateBookCardUI(title);
   updateOpenModals(title);
 };
+
+function updateBookCardUI(title) {
+  const book = books.find(b => b.title === title);
+  if (!book) return;
+
+  const escapedTitle = title.replace(/"/g, '&quot;');
+  const wrappers = document.querySelectorAll(`.book-card[data-title="${escapedTitle}"] .cart-action-wrapper`);
+  wrappers.forEach(wrapper => {
+    wrapper.innerHTML = renderAddToCartButton(book);
+  });
+}
 
 function updateOpenModals(title) {
   // Update cart modal if open
@@ -606,11 +621,31 @@ function updateOpenModals(title) {
 
   // Update main book modal if open and showing this book
   const modal = document.getElementById('modal');
-  if (modal && modal.style.display === 'flex') {
+  if (modal && modal.classList.contains('open')) {
     const book = books.find(b => b.title === title);
-    const actionArea = document.querySelector('.modal-cart-action');
-    if (actionArea && book) {
-      actionArea.innerHTML = renderAddToCartButton(book);
+    const modalTitle = modal.querySelector('.modal-title');
+    if (modalTitle && modalTitle.innerText === title && book) {
+      // We need to find the action area in the modal
+      const modalActions = modal.querySelector('.modal-actions');
+      if (modalActions) {
+        // Re-render modal action part
+        const t = translations[currentLang];
+        const cartBtnHtml = renderAddToCartButton(book);
+        if (!cartBtnHtml.includes('qty-controls')) {
+          modalActions.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem;">
+              <div class="book-price modal-price-lg">
+                ${book.price && !isNaN(parseFloat(book.price)) ? `${book.price} ${t.pricePrefix}` : t.priceOnRequest}
+              </div>
+            </div>
+            <button class="btn-primary" onclick="window.addToCartByTitle('${book.title.replace(/'/g, "\\'")}')">${t.addToCart}</button>
+            `;
+        } else {
+          modalActions.innerHTML = cartBtnHtml;
+          const controlsDiv = modalActions.querySelector('.qty-controls');
+          if (controlsDiv) controlsDiv.classList.add('modal-qty-controls-override');
+        }
+      }
     }
   }
 }
@@ -842,7 +877,49 @@ window.closeModal = () => {
   document.getElementById('modal').classList.remove('open');
 };
 
-function renderUI() {
+function updateUIVisuals() {
+  const t = translations[currentLang];
+
+  // Update header and non-dynamic parts
+  const logoAlt = document.querySelector('.site-logo');
+  if (logoAlt) logoAlt.alt = t.title;
+
+  const heroTitle = document.querySelector('.hero-title');
+  if (heroTitle) heroTitle.innerText = t.title;
+
+  const heroSubtitle = document.querySelector('.subtitle');
+  if (heroSubtitle) heroSubtitle.innerText = t.subtitle;
+
+  const searchInput = document.querySelector('.search-input');
+  if (searchInput) searchInput.placeholder = t.searchPlaceholder;
+
+  const drawerTitle = document.querySelector('.drawer-title');
+  if (drawerTitle) drawerTitle.innerText = t.cart;
+
+  const currLangLabel = document.querySelector('.curr-lang');
+  if (currLangLabel) currLangLabel.innerText = currentLang.toUpperCase();
+
+  // Highlight active lang in menu
+  document.querySelectorAll('.lang-item').forEach(btn => {
+    const isEn = btn.innerText.toLowerCase().includes('english') || btn.getAttribute('onclick').includes("'en'");
+    const lang = isEn ? 'en' : 'ar';
+    btn.classList.toggle('active', currentLang === lang);
+  });
+
+  // Re-render dynamic sections
+  renderBestSellers();
+  renderNewArrivals();
+  renderCategories();
+  renderBooks();
+
+  // Update footer
+  const footerContainer = document.querySelector('.site-footer');
+  if (footerContainer) {
+    footerContainer.outerHTML = renderFooter();
+  }
+}
+
+function initAppStructure() {
   const t = translations[currentLang];
   document.getElementById('app').innerHTML = `
       <header class="sticky-header">
@@ -915,7 +992,7 @@ function renderUI() {
 
     <div id="pagination" class="pagination"></div>
 
-    ${renderFooter()}
+    <div id="footer-placeholder"></div>
 
     <div id="modal" class="modal-overlay" onclick="if(event.target === this) window.closeModal()">
       <div class="modal-content">
@@ -945,6 +1022,14 @@ function renderUI() {
     </div>
     `;
 
+  const footerPlaceholder = document.getElementById('footer-placeholder');
+  if (footerPlaceholder) {
+    footerPlaceholder.outerHTML = renderFooter();
+  }
+}
+
+function renderUI() {
+  initAppStructure();
   renderBestSellers();
   renderNewArrivals();
   renderCategories();

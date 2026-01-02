@@ -108,7 +108,7 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: color 0.4s ease;
+  transition: color 0.3s ease-out;
   overflow-x: hidden;
   position: relative;
   min-height: 100vh;
@@ -127,8 +127,24 @@ body::before {
   background-position: center;
   background-repeat: no-repeat;
   z-index: -2;
-  transition: opacity 0.5s ease;
-  filter: brightness(1) contrast(1.05) blur(3px);
+  transition: opacity 0.5s ease-out;
+  filter: brightness(0.95) contrast(1);
+  will-change: transform;
+  /* Removed expensive blur and infinite pulse for performance */
+}
+
+@keyframes bgPulse {
+  0% {
+    transform: scale(1) translate(0, 0);
+  }
+
+  50% {
+    transform: scale(1.05) translate(-1%, -1%);
+  }
+
+  100% {
+    transform: scale(1) translate(1%, 1%);
+  }
 }
 
 body::after {
@@ -147,10 +163,10 @@ body::after {
 
 .featured-section,
 .filter-section {
-  background: rgba(253, 252, 251, 0.4);
-  backdrop-filter: blur(24px) saturate(1.2);
-  -webkit-backdrop-filter: blur(24px) saturate(1.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(253, 252, 251, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
   padding: 3rem 4rem;
   margin-bottom: 3rem;
   box-shadow: var(--shadow-xl), var(--inner-glow);
@@ -172,16 +188,17 @@ body::after {
 
 [data-theme="dark"] .featured-section,
 [data-theme="dark"] .filter-section {
-  background: rgba(15, 23, 42, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: var(--shadow-xl), var(--inner-glow);
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: var(--shadow-xl);
 }
 
 #app {
   width: 100%;
   /* Cinematic edge-to-edge */
   margin: 0;
-  padding: 0 0 5rem 0;
+  padding: 0 0 8rem 0;
+  /* Increased bottom padding for space above footer */
   /* Remove horizontal padding here */
   min-height: 100vh;
   display: flex;
@@ -244,6 +261,13 @@ header.sticky-header {
 .site-logo {
   height: 40px;
   width: auto;
+  transition: transform 0.3s var(--ease-spring), filter 0.3s ease;
+  cursor: pointer;
+}
+
+.site-logo:hover {
+  transform: scale(1.1) rotate(-3deg);
+  filter: drop-shadow(0 0 8px var(--primary-subtle));
 }
 
 .header-actions {
@@ -277,10 +301,11 @@ header.sticky-header {
   background: radial-gradient(circle at 50% 50%, rgba(79, 70, 229, 0.25), transparent 70%),
     radial-gradient(circle at 100% 0%, rgba(14, 165, 233, 0.15), transparent 60%),
     radial-gradient(circle at 0% 100%, rgba(236, 72, 153, 0.1), transparent 60%);
-  filter: blur(100px);
+  filter: blur(60px);
   z-index: 0;
-  animation: gradient-flow 12s ease-in-out infinite alternate;
+  animation: gradient-flow 15s ease-in-out infinite alternate;
   pointer-events: none;
+  will-change: transform;
 }
 
 .hero-section::after {
@@ -387,7 +412,7 @@ header.sticky-header {
   font-size: 0.9rem;
   cursor: pointer;
   border-radius: var(--radius-sm);
-  transition: all 0.2s;
+  transition: background 0.2s ease-out, color 0.2s ease-out;
 }
 
 .lang-trigger:hover,
@@ -679,11 +704,11 @@ header.sticky-header {
 .book-card {
   background: var(--bg-card);
   backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(4px);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   overflow: hidden;
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease-out, border-color 0.25s ease-out;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -940,7 +965,141 @@ header.sticky-header {
   box-shadow: var(--shadow-sm);
 }
 
-/* --- Modals --- */
+/* Animation Classes */
+.reveal {
+  opacity: 0;
+  transform: translateY(30px) scale(0.98);
+  transition: all 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+  visibility: hidden;
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  visibility: visible;
+}
+
+.book-card {
+  transition: transform 0.4s var(--ease-spring), box-shadow 0.4s ease, border-color 0.4s ease;
+}
+
+.book-card:hover {
+  transform: translateY(-8px) scale(1.02) rotateX(2deg) rotateY(2deg);
+  box-shadow:
+    0 25px 30px -5px rgba(0, 0, 0, 0.12),
+    0 15px 15px -5px rgba(0, 0, 0, 0.06);
+  border-color: var(--primary-subtle);
+  animation: float 3s infinite ease-in-out;
+}
+
+/* Stagger reveals */
+.reveal:nth-child(1) {
+  transition-delay: 0.1s;
+}
+
+.reveal:nth-child(2) {
+  transition-delay: 0.2s;
+}
+
+.reveal:nth-child(3) {
+  transition-delay: 0.3s;
+}
+
+.reveal:nth-child(4) {
+  transition-delay: 0.4s;
+}
+
+.horizontal-scroll .book-card {
+  opacity: 0;
+  transform: translateX(20px);
+  transition: all 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.visible .horizontal-scroll .book-card {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.horizontal-scroll .book-card:nth-child(1) {
+  transition-delay: 0.1s;
+}
+
+.horizontal-scroll .book-card:nth-child(2) {
+  transition-delay: 0.2s;
+}
+
+.horizontal-scroll .book-card:nth-child(3) {
+  transition-delay: 0.3s;
+}
+
+.horizontal-scroll .book-card:nth-child(4) {
+  transition-delay: 0.4s;
+}
+
+.horizontal-scroll .book-card:nth-child(5) {
+  transition-delay: 0.5s;
+}
+
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(-8px) scale(1.02);
+  }
+
+  50% {
+    transform: translateY(-12px) scale(1.025);
+  }
+}
+
+.hero-title {
+  animation: slideInDown 1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.hero-section .subtitle {
+  opacity: 0;
+  animation: slideInUp 1s cubic-bezier(0.2, 0.8, 0.2, 1) 0.3s forwards;
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-40px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.category-pill {
+  transition: all 0.3s var(--ease-spring);
+}
+
+.category-pill:hover {
+  transform: scale(1.1) translateY(-2px);
+}
+
+.add-btn {
+  transition: all 0.3s var(--ease-spring);
+}
+
+.add-btn:hover {
+  transform: rotate(90deg) scale(1.1);
+}
 
 .modal-overlay {
   position: fixed;
@@ -1232,8 +1391,8 @@ header.sticky-header {
   .header-container {
     height: auto;
     flex-direction: column;
-    gap: 0.5rem;
-    padding: 0.75rem 1rem;
+    gap: 0.4rem;
+    padding: 0.5rem 0.75rem;
   }
 
   .header-actions {
@@ -1248,13 +1407,17 @@ header.sticky-header {
   }
 
   .hero-section h1 {
-    font-size: 1.75rem;
+    font-size: 2.2rem;
+    line-height: 1.2;
+    padding-top: 0.5rem;
   }
 
   .hero-section .subtitle {
-    font-size: 0.9rem;
-    padding: 0 0.5rem;
-    margin-bottom: 1rem;
+    font-size: 0.85rem;
+    padding: 0 1rem;
+    margin-bottom: 0.5rem;
+    max-width: 90%;
+    margin: 0 auto;
   }
 
   /* Search & Nav */
@@ -1263,25 +1426,25 @@ header.sticky-header {
   }
 
   .search-input {
-    font-size: 0.95rem;
-    padding: 0.75rem 1rem 0.75rem 2.5rem;
+    font-size: 0.9rem;
+    padding: 0.6rem 1rem 0.6rem 2.2rem;
   }
 
   [dir="rtl"] .search-input {
-    padding: 0.75rem 2.5rem 0.75rem 1rem;
+    padding: 0.6rem 2.2rem 0.6rem 1rem;
   }
 
   .category-pill {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.8rem;
+    padding: 0.35rem 0.7rem;
+    font-size: 0.75rem;
   }
 
   /* Grid & Cards */
   /* Grid & Cards */
   .book-grid {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 1rem;
-    padding: 1rem;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+    padding: 0.75rem;
     width: 100%;
   }
 
@@ -1350,16 +1513,18 @@ header.sticky-header {
   }
 
   .book-info {
-    padding: 0.75rem;
+    padding: 0.65rem;
   }
 
   .book-title {
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     line-height: 1.3;
+    min-height: 2.6em;
+    margin-bottom: 0.4rem;
   }
 
   .book-price {
-    font-size: 1rem;
+    font-size: 0.9rem;
   }
 
   .add-btn {
@@ -1371,16 +1536,29 @@ header.sticky-header {
   /* Horizontal Scroll Sections */
   .horizontal-scroll {
     gap: 0.75rem;
-    padding-bottom: 1.5rem;
+    padding-bottom: 1rem;
   }
 
   .horizontal-scroll .book-card {
-    min-width: 150px;
-    width: 150px;
+    min-width: 140px;
+    width: 140px;
   }
 
   .horizontal-scroll .book-img-container {
-    height: 190px;
+    height: 160px;
+  }
+
+  .status-badge {
+    padding: 2px 6px;
+    font-size: 0.6rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  [dir="rtl"] .status-badge {
+    font-size: 0.65rem;
   }
 
   /* Modals */
@@ -1779,12 +1957,15 @@ textarea.form-control {
 
 /* --- Site Footer --- */
 .site-footer {
-  margin-top: auto;
+  margin-top: 6rem;
+  /* Substantial space above footer */
   background: rgba(253, 252, 251, 0.6);
   backdrop-filter: blur(20px);
   border-top: 1px solid var(--border-color);
   padding: 4rem 4rem 2rem;
   color: var(--text-primary);
+  position: relative;
+  z-index: 10;
 }
 
 [data-theme="dark"] .site-footer {
