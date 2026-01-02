@@ -154,24 +154,24 @@ function parseCSV(csv) {
     const currentLine = parseCSVLine(lines[i]);
     if (currentLine.length < 2) continue;
 
-    // "Column 8" is at index 5 in the CSV (0-based)
-    const manualImageCol = currentLine[5];
-    const isManualImage = manualImageCol && manualImageCol.startsWith('http');
-
     const book = {
       title: currentLine[0] || 'Unknown Title',
       cost: currentLine[1],
       price: currentLine[4], // "Suggestted" column at index 4
       profit: currentLine[3],
       availability: currentLine[5], // "Availability" column at index 5
+      author: currentLine[7] || '', // Author at index 7
       category: formatCategory(currentLine[8], currentLine[0]), // "Category" at index 8
-      // Overview/Author removed as requested
-      manualImage: isManualImage ? manualImageCol : null
+      image: null,
+      isPlaceholder: true
     };
 
-    // Note: Image logic skipped as images are removed from UI
-    book.image = null;
-    book.isPlaceholder = true;
+    // Heuristic: If availability column starts with http, it's a manual image URL
+    if (book.availability && book.availability.startsWith('http')) {
+      book.image = book.availability;
+      book.isPlaceholder = false;
+      book.availability = '1';
+    }
 
     result.push(book);
   }
@@ -509,6 +509,12 @@ function renderBookCard(book, absoluteIndex, pageIndex) {
 
   return `
     <div class="book-card reveal" data-title="${book.title.replace(/"/g, '&quot;')}" style="--item-index: ${pageIndex % 10}" onclick="window.openModal(${absoluteIndex})">
+      <div class="book-img-container">
+        ${book.image ?
+      `<img src="${book.image}" alt="${book.title}" class="book-img fade-in" loading="lazy">` :
+      `<div class="placeholder-cover"><div class="cover-title">${book.title}</div></div>`
+    }
+      </div>
       <div class="book-info">
         <div class="status-badge-container">
           <span class="status-badge ${isAvailable ? 'in-stock' : 'out-of-stock'}">
@@ -1141,15 +1147,21 @@ function renderBookCardSmall(book, absoluteIndex) {
 
   return `
     <div class="book-card small-card reveal" data-title="${book.title.replace(/"/g, '&quot;')}" onclick="window.openModal(${absoluteIndex})">
+      <div class="book-img-container" style="height: 180px;">
+        ${book.image ?
+      `<img src="${book.image}" alt="${book.title}" class="book-img fade-in" loading="lazy">` :
+      `<div class="placeholder-cover"><div class="cover-title" style="font-size:0.7rem;">${book.title}</div></div>`
+    }
+      </div>
       <div class="book-info small-info">
         <div class="status-badge-container">
           <span class="status-badge ${isAvailable ? 'in-stock' : 'out-of-stock'}">
             ${isAvailable ? t.inStock : t.outOfAvailability}
           </span>
         </div>
-        <div class="book-title">${book.title}</div>
+        <div class="book-title small-title">${book.title}</div>
         <div class="card-actions">
-          <div class="book-price">${book.price && !isNaN(parseFloat(book.price)) ? `${book.price} ${t.pricePrefix}` : t.priceOnRequest}</div>
+          <div class="book-price" style="font-size:0.9rem;">${book.price && !isNaN(parseFloat(book.price)) ? `${book.price} ${t.pricePrefix}` : t.priceOnRequest}</div>
           <div class="cart-action-wrapper" onclick="event.stopPropagation()">
             ${renderAddToCartButton(book)}
           </div>
