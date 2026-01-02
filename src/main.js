@@ -35,8 +35,8 @@ cart = uniqueCart;
 const translations = {
   en: {
     title: 'LibInventory',
-    subtitle: 'Explore and manage our premium library collection. Real-time availability from our central database.',
-    searchPlaceholder: 'Search by title, author, or category...',
+    subtitle: 'Explore our premium library collection. Real-time availability from our central database.',
+    searchPlaceholder: 'Search by title or category...',
     all: 'All',
     close: 'Close',
     quantity: 'x',
@@ -46,8 +46,6 @@ const translations = {
     inStock: 'In Stock',
     outOfAvailability: 'Contact for Availability',
     reserveNow: 'Reserve Now',
-    by: 'By',
-    briefTemplate: (title, author) => `Experience the captivating story of "${title}" by ${author}. An essential addition to any library collection.`,
     pricePrefix: 'JOD',
     fullNamePlaceholder: 'Mohammad Ahmad',
     phoneNumberPlaceholder: '+962 77 123 456',
@@ -76,8 +74,8 @@ const translations = {
   },
   ar: {
     title: 'مكتبة وعي',
-    subtitle: 'استكشف وإدارة مجموعتنا المكتبية المتميزة. توفر مباشر من قاعدة بياناتنا المركزية.',
-    searchPlaceholder: 'ابحث حسب العنوان أو المؤلف أو التصنيف...',
+    subtitle: 'استكشف مجموعتنا المكتبية المتميزة. توفر مباشر من قاعدة بياناتنا المركزية.',
+    searchPlaceholder: 'ابحث حسب العنوان أو التصنيف...',
     all: 'الكل',
     close: 'إغلاق',
     quantity: 'عدد',
@@ -87,8 +85,6 @@ const translations = {
     inStock: 'متوفر',
     outOfAvailability: 'تواصل لمعرفة التوفر',
     reserveNow: 'احجز الآن',
-    by: 'بواسطة',
-    briefTemplate: (title, author) => `استمتع بتجربة القصة الآسرة لـ "${title}" بقلم ${author}. إضافة أساسية لأي مجموعة مكتبية.`,
     pricePrefix: 'دينار',
     errorTitle: 'فشل تحميل المخزون',
     errorText: 'يرجى التحقق من الاتصال أو إعدادات مشاركة جدول البيانات.',
@@ -151,7 +147,7 @@ function parseCSV(csv) {
   const result = [];
   const headers = lines[0].split(',');
 
-  // Headers: Title,Cost,Price,Profit,Availability,Column 8,Author,Category,Overview
+  // Headers: Title,Cost,Price,Profit,Suggestted,Availability,Quantity,Author,Category,Overview
   for (let i = 1; i < lines.length; i++) {
     if (!lines[i].trim()) continue;
 
@@ -165,25 +161,17 @@ function parseCSV(csv) {
     const book = {
       title: currentLine[0] || 'Unknown Title',
       cost: currentLine[1],
-      price: currentLine[2],
+      price: currentLine[4], // "Suggestted" column at index 4
       profit: currentLine[3],
-      availability: currentLine[4],
-      author: currentLine[6] || 'Unknown Author',
-      category: formatCategory(currentLine[7], currentLine[0]),
-      // Index 8 is now "Overview" based on recent CSV structure
-      overview: currentLine[8] || null,
-      manualImage: isManualImage ? manualImageCol : null,
-      brief: currentLine[8] || `Experience the captivating story of "${currentLine[0]}" by ${currentLine[6] || 'Unknown Author'}. An essential addition to any library collection.`
+      availability: currentLine[5], // "Availability" column at index 5
+      category: formatCategory(currentLine[8], currentLine[0]), // "Category" at index 8
+      // Overview/Author removed as requested
+      manualImage: isManualImage ? manualImageCol : null
     };
 
-    // Logic to determine initial display state
-    if (book.manualImage) {
-      book.image = book.manualImage;
-      book.isPlaceholder = false;
-    } else {
-      book.image = getPlaceholderImage(book.title, book.category);
-      book.isPlaceholder = true; // Signals that we can try to auto-fetch
-    }
+    // Note: Image logic skipped as images are removed from UI
+    book.image = null;
+    book.isPlaceholder = true;
 
     result.push(book);
   }
@@ -223,41 +211,8 @@ function formatCategory(cat, title) {
   return cat;
 }
 
-function getPlaceholderImage(title, category) {
-  const colors = {
-    'رواية': '6366f1',
-    'تنمية': 'a855f7',
-    'إسلامي': '10b981',
-    'فقه': 'f59e0b',
-    'سيرة': 'ef4444',
-    'default': '3f3f46'
-  };
-
-  let bgColor = colors.default;
-  for (const [key, color] of Object.entries(colors)) {
-    if (category && category.includes(key)) {
-      bgColor = color;
-      break;
-    }
-  }
-
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(title)}&background=${bgColor}&size=400&color=fff&font-size=0.25&length=3&bold=true`;
-}
-
 function getCategoryColor(category) {
-  const colors = {
-    'رواية': '6366f1',
-    'تنمية': 'a855f7',
-    'إسلامي': '10b981',
-    'فقه': 'f59e0b',
-    'سيرة': 'ef4444',
-    'default': '3f3f46'
-  };
-
-  for (const [key, color] of Object.entries(colors)) {
-    if (category && category.includes(key)) return color;
-  }
-  return colors.default;
+  return '3f3f46';
 }
 
 function processCategories(allBooks) {
@@ -431,7 +386,6 @@ function renderBooks() {
   }).join('');
 
   updatePagination(totalPages);
-  initCoverLoader();
 }
 
 function updatePagination(totalPages) {
@@ -538,7 +492,6 @@ function filterBooks() {
     }
 
     const matchesSearch = (book.title || '').toLowerCase().includes(searchQuery) ||
-      (book.author || '').toLowerCase().includes(searchQuery) ||
       (book.category || '').toLowerCase().includes(searchQuery);
 
     return matchesCategory && matchesSearch;
@@ -550,30 +503,17 @@ function renderBookCard(book, absoluteIndex, pageIndex) {
   const t = translations[currentLang];
   const isAvailable = book.availability === '1';
 
-  const fetchAttr = book.isPlaceholder
-    ? `data-book-title="${book.title.replace(/"/g, '&quot;')}" data-book-author="${(book.author || '').replace(/"/g, '&quot;')}" data-book-index="${absoluteIndex}"`
-    : '';
-
-  const coverContent = book.isPlaceholder
-    ? `<div class="placeholder-cover" style="--cover-bg: #${getCategoryColor(book.category)}">
-         <div class="cover-title">${book.title}</div>
-       </div>`
-    : `<img src="${book.image}" alt="${book.title}" class="book-img" loading="lazy">`;
-
   return `
     <div class="book-card reveal" style="--item-index: ${pageIndex % 10}" onclick="window.openModal(${absoluteIndex})">
-      <div class="book-img-container" ${fetchAttr}>
-        <span class="status-badge ${isAvailable ? 'in-stock' : 'out-of-stock'}">
-          ${isAvailable ? t.inStock : t.outOfAvailability}
-        </span>
-        ${coverContent}
-      </div>
       <div class="book-info">
-        <div class="book-category">${book.category}</div>
+        <div class="status-badge-container">
+          <span class="status-badge ${isAvailable ? 'in-stock' : 'out-of-stock'}">
+            ${isAvailable ? t.inStock : t.outOfAvailability}
+          </span>
+        </div>
         <div class="book-title">${book.title}</div>
-        <div class="book-author">${book.author}</div>
         <div class="card-actions">
-          <div class="book-price">${book.price && !isNaN(parseFloat(book.price)) ? `${book.price}` : t.priceOnRequest}</div>
+          <div class="book-price">${book.price && !isNaN(parseFloat(book.price)) ? `${book.price} ${t.pricePrefix}` : t.priceOnRequest}</div>
           <div class="cart-action-wrapper" onclick="event.stopPropagation()">
             ${renderAddToCartButton(book)}
           </div>
@@ -713,7 +653,6 @@ function renderCartModal() {
     <div class="cart-items">
       ${cart.map(item => `
         <div class="cart-item">
-          <img src="${item.image}" alt="${item.title}" class="cart-item-img"> 
           <div class="cart-item-info" style="flex:1;">
             <h4 class="cart-item-title">${item.title}</h4>
             <p style="color:var(--text-secondary); font-size:0.85rem; margin-bottom:0.5rem;">${item.price && !isNaN(parseFloat(item.price)) ? `${item.price}` : t.priceOnRequest} ${translations[currentLang].pricePrefix}</p>
@@ -852,42 +791,26 @@ window.openModal = (index) => {
   const modal = document.getElementById('modal');
   const t = translations[currentLang];
 
-  const modalCover = book.isPlaceholder
-    ? `<div class="placeholder-cover modal-placeholder" style="--cover-bg: #${getCategoryColor(book.category)}">
-         <div class="cover-title">${book.title}</div>
-       </div>`
-    : `<img src="${book.image}" alt="${book.title}" class="modal-img-lg" id="modal-img">`;
-
-  // We are using the new split layout
   const modalContent = modal.querySelector('.modal-content');
 
   modalContent.innerHTML = `
-    <div class="modal-split-layout">
-      <div class="modal-left">
-         ${modalCover}
-      </div>
-      <div class="modal-right">
+    <div class="modal-simple-layout">
         <button class="modal-close" onclick="window.closeModal()">&times;</button>
-        <div class="book-category">${book.category}</div>
         <h2 class="modal-title">${book.title}</h2>
-        <div class="modal-meta">
-          <span>${t.by} <strong style="color:var(--text-primary);">${book.author}</strong></span>
-          ${book.availability === '1' ? `<span style="color:var(--success-text); font-weight:700;">${t.inStock}</span>` : `<span style="color:var(--error-text); font-weight:700;">${t.outOfAvailability}</span>`}
-        </div>
-        
-        <div class="modal-desc">
-          ${book.overview || t.briefTemplate(book.title, book.author)}
+        <div class="status-badge-container">
+          <span class="status-badge ${book.availability === '1' ? 'in-stock' : 'out-of-stock'}">
+            ${book.availability === '1' ? t.inStock : t.outOfAvailability}
+          </span>
         </div>
         
         <div class="modal-actions">
            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem;">
              <div class="book-price modal-price-lg">
-              ${book.price && !isNaN(parseFloat(book.price)) ? `${book.price}` : t.priceOnRequest}
+              ${book.price && !isNaN(parseFloat(book.price)) ? `${book.price} ${t.pricePrefix}` : t.priceOnRequest}
              </div>
            </div>
            <button class="btn-primary" onclick="window.addToCartByTitle('${book.title.replace(/'/g, "\\'")}')">${t.addToCart}</button>
         </div>
-      </div>
     </div>
     `;
 
@@ -974,11 +897,11 @@ function renderUI() {
         </span>
       </div>
       
-      <div id="categories" class="categories">
-        <!-- Categories will be injected here -->
+      <div id="categories" class="categories" style="display:none">
+        <!-- Categories hidden as requested -->
       </div>
       <div id="sub-categories" class="categories sub-categories" style="display:none">
-        <!-- Sub-categories injected here -->
+        <!-- Sub-categories hidden as requested -->
       </div>
     </div>
     
@@ -1026,130 +949,18 @@ function renderUI() {
   renderNewArrivals();
   renderCategories();
   renderBooks();
-  initCoverLoader();
   initRevealObserver();
 }
 
-// --- Google Books Auto-Fetch Logic ---
-const imageCache = new Map(); // Cache URL to avoid re-fetching same book
-let coverObserver = null;
+// Image fetching logic removed
 
-function initCoverLoader() {
-  // Disconnect previous observer if exists to avoid duplicates
-  if (coverObserver) coverObserver.disconnect();
-
-  const options = {
-    root: null,
-    rootMargin: '100px', // Fetch a bit before they appear
-    threshold: 0.1
-  };
-
-  coverObserver = new IntersectionObserver((entries, observer) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        const container = entry.target;
-        const title = container.dataset.bookTitle;
-        const author = container.dataset.bookAuthor;
-        const index = container.dataset.bookIndex;
-
-        if (title) { // Title is required
-          fetchBookCover(title, author, container, index);
-          observer.unobserve(container);
-        }
-      }
-    });
-  }, options);
-
-  // Observe all containers that need fetching
-  const containers = document.querySelectorAll('.book-img-container[data-book-title]');
-  containers.forEach(el => coverObserver.observe(el));
-}
-
-async function fetchBookCover(title, author, containerElement, bookIndex) {
-  // Construct a more specific query
-  let query = `intitle:${title} `;
-  if (author && author !== 'Unknown Author') {
-    query += `+ inauthor:${author} `;
-  }
-
-  const cacheKey = query;
-
-  // Check RAM cache first
-  if (imageCache.has(cacheKey)) {
-    applyCoverImage(containerElement, imageCache.get(cacheKey), bookIndex);
-    return;
-  }
-
-  try {
-    const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=1`);
-    const data = await response.json();
-
-    if (data.items && data.items.length > 0) {
-      const info = data.items[0].volumeInfo;
-      // Prefer high-res if available, but thumbnail is standard
-      const imageLinks = info.imageLinks;
-
-      if (imageLinks) {
-        // Use standard thumbnail, force replace http with https
-        let imgUrl = imageLinks.thumbnail || imageLinks.smallThumbnail;
-        if (imgUrl) {
-          imgUrl = imgUrl.replace('http://', 'https://');
-          imageCache.set(cacheKey, imgUrl);
-          applyCoverImage(containerElement, imgUrl, bookIndex);
-        }
-      }
-    } else {
-      // No result found, mark as processed
-      containerElement.removeAttribute('data-book-title');
-    }
-  } catch (error) {
-    console.warn('Failed to fetch cover for:', title, error);
-  }
-}
-
-function applyCoverImage(container, url, index) {
-  // Update the data model so modal opening works instantly later
-  if (books[index]) {
-    books[index].image = url;
-    books[index].isPlaceholder = false;
-  }
-
-  // Update DOM using a fade-in effect
-  const img = new Image();
-  img.src = url;
-  img.className = 'book-img fade-in';
-  img.alt = books[index] ? books[index].title : 'Book Cover';
-
-  img.onload = () => {
-    container.innerHTML = ''; // Clear placeholder
-    // Re-add status badge if it existed
-    // Note: To keep it simple, we just re-render the inner content or prepend the badge.
-    // However, since we cleared innerHTML, we lost the badge. Let's reconstruct or simpler:
-    // Just replace the cover content.
-
-    // Better strategy: Hide the placeholder div and append the image
-    const placeholder = container.querySelector('.placeholder-cover');
-    if (placeholder) placeholder.style.display = 'none';
-
-    // Ensure badge stays
-    const badge = container.querySelector('.status-badge');
-
-    container.innerHTML = '';
-    if (badge) container.appendChild(badge);
-    container.appendChild(img);
-
-
-    // Remove attribute
-    container.removeAttribute('data-book-title');
-  };
-}
 
 function renderNewArrivals() {
   const container = document.getElementById('new-arrivals-section');
   const t = translations[currentLang];
   if (!container || books.length === 0) return;
 
-  const newArrivals = books.slice(-10).reverse();
+  const newArrivals = books.slice(-20).reverse();
 
   container.innerHTML = `
     <h2 class="section-title">${t.newItems}</h2>
@@ -1215,28 +1026,25 @@ function renderFooter() {
       <footer class="site-footer reveal">
         <div class="footer-content">
           <div class="footer-brand">
-            <h3>Bookstore Premium</h3>
-            <p>${t.subtitle || 'Your gateway to a world of stories.'}</p>
+            <h3>${t.title}</h3>
+            <p>${t.subtitle}</p>
           </div>
           <div class="footer-links">
-            <h4>Shop</h4>
+            <h4>${currentLang === 'ar' ? 'المتجر' : 'Shop'}</h4>
             <ul>
-              <li><a href="#">Best Sellers</a></li>
-              <li><a href="#">New Arrivals</a></li>
-              <li><a href="#">Categories</a></li>
+              <li><a href="#" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">${t.bestSellers}</a></li>
+              <li><a href="#" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">${t.newItems}</a></li>
             </ul>
           </div>
           <div class="footer-links">
-            <h4>About</h4>
+            <h4>${currentLang === 'ar' ? 'تواصل معنا' : 'Contact'}</h4>
             <ul>
-              <li><a href="#">Our Story</a></li>
-              <li><a href="#">Shipping Policy</a></li>
-              <li><a href="#">Privacy Policy</a></li>
+              <li><a href="https://wa.me/962781543080" target="_blank">${currentLang === 'ar' ? 'واتساب' : 'WhatsApp'}</a></li>
             </ul>
           </div>
         </div>
         <div class="footer-bottom">
-          &copy; ${new Date().getFullYear()} Bookstore Premium. All rights reserved.
+          &copy; ${new Date().getFullYear()} ${t.title}. ${currentLang === 'ar' ? 'جميع الحقوق محفوظة.' : 'All rights reserved.'}
         </div>
       </footer>
     `;
@@ -1245,28 +1053,17 @@ function renderFooter() {
 function renderBookCardSmall(book, absoluteIndex) {
   const t = translations[currentLang];
 
-  // Generate attributes for auto-fetching
-  const fetchAttr = book.isPlaceholder
-    ? `data-book-title="${book.title.replace(/"/g, '&quot;')}" data-book-author="${(book.author || '').replace(/"/g, '&quot;')}" data-book-index="${absoluteIndex}"`
-    : '';
-
-  const coverContent = book.isPlaceholder
-    ? `<div class="placeholder-cover small-cover" style="--cover-bg: #${getCategoryColor(book.category)}">
-         <div class="cover-title small-title">${book.title}</div>
-       </div>`
-    : `<img src="${book.image}" alt="${book.title}" class="book-img" loading="lazy">`;
-
   return `
     <div class="book-card small-card" onclick="window.openModal(${absoluteIndex})">
-      <div class="book-img-container small-img-container" ${fetchAttr}>
-        ${book.availability === '1' ? `<span class="status-badge in-stock">${t.inStock}</span>` : `<span class="status-badge out-of-availability">${t.outOfAvailability}</span>`}
-        ${coverContent}
-      </div>
       <div class="book-info small-info">
-        <div class="book-category">${book.category}</div>
+        <div class="status-badge-container">
+          <span class="status-badge ${book.availability === '1' ? 'in-stock' : 'out-of-stock'}">
+            ${book.availability === '1' ? t.inStock : t.outOfAvailability}
+          </span>
+        </div>
         <div class="book-title">${book.title}</div>
         <div class="card-actions">
-          <div class="book-price">${book.price && !isNaN(parseFloat(book.price)) ? `$${parseFloat(book.price).toFixed(2)}` : t.priceOnRequest}</div>
+          <div class="book-price">${book.price && !isNaN(parseFloat(book.price)) ? `${book.price} ${t.pricePrefix}` : t.priceOnRequest}</div>
         </div>
       </div>
     </div>
