@@ -1383,7 +1383,8 @@ header.sticky-header {
 
   /* Layout & Spacing */
   #app {
-    padding: 0 1rem 4rem;
+    padding: 0 0 4rem 0;
+    overflow-x: hidden;
   }
 
   /* Header */
@@ -1407,17 +1408,19 @@ header.sticky-header {
   }
 
   .hero-section h1 {
-    font-size: 2.2rem;
-    line-height: 1.2;
+    font-size: 2.4rem;
+    line-height: 1.1;
     padding-top: 0.5rem;
+    margin-bottom: 1rem;
   }
 
   .hero-section .subtitle {
-    font-size: 0.85rem;
-    padding: 0 1rem;
+    font-size: 0.9rem;
+    padding: 0 1.5rem;
     margin-bottom: 0.5rem;
-    max-width: 90%;
-    margin: 0 auto;
+    max-width: 100%;
+    color: var(--text-primary);
+    opacity: 0.9;
   }
 
   /* Search & Nav */
@@ -1443,18 +1446,27 @@ header.sticky-header {
   /* Grid & Cards */
   .book-grid {
     grid-template-columns: repeat(2, 1fr);
+    grid-auto-rows: 1fr;
     gap: 0.75rem;
-    padding: 0.75rem;
+    padding: 1rem;
     width: 100%;
+    justify-items: stretch;
+    box-sizing: border-box;
   }
 
   .status-badge {
-    padding: 4px 10px;
-    font-size: 0.65rem;
+    padding: 3px 8px;
+    font-size: 0.6rem;
+    margin: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   }
 
   [dir="rtl"] .status-badge {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
+  }
+
+  .status-badge-container {
+    margin-bottom: 0.5rem;
   }
 
   .book-img-container {
@@ -1491,11 +1503,13 @@ header.sticky-header {
 
   .featured-section,
   .filter-section {
-    width: calc(100% + 2rem);
-    margin-left: -1rem;
-    padding: 1.5rem 1rem;
+    width: 100%;
+    margin-left: 0;
+    padding: 2rem 1rem;
     border-radius: 0;
-    /* Flush on mobile */
+    border-left: none;
+    border-right: none;
+    box-sizing: border-box;
   }
 
   .scroll-btn {
@@ -1513,18 +1527,51 @@ header.sticky-header {
   }
 
   .book-info {
-    padding: 0.65rem;
+    padding: 0.75rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
   }
 
   .book-title {
-    font-size: 0.8rem;
-    line-height: 1.3;
-    min-height: 2.6em;
-    margin-bottom: 0.4rem;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    min-height: 2.8em;
+    margin-bottom: 0.75rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
   }
 
   .book-price {
     font-size: 0.9rem;
+    white-space: nowrap;
+  }
+
+  .card-actions {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+  }
+
+  [dir="rtl"] .card-actions {
+    align-items: flex-start;
+  }
+
+  .cart-action-wrapper {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  [dir="rtl"] .cart-action-wrapper {
+    justify-content: flex-start;
+  }
+
+  .qty-controls {
+    width: 100%;
+    justify-content: space-between;
+    padding: 0.2rem 0.4rem;
   }
 
   .add-btn {
@@ -1535,17 +1582,31 @@ header.sticky-header {
 
   /* Horizontal Scroll Sections */
   .horizontal-scroll {
-    gap: 0.75rem;
-    padding-bottom: 1rem;
+    gap: 1rem;
+    padding: 1rem 0;
   }
 
   .horizontal-scroll .book-card {
-    min-width: 140px;
-    width: 140px;
+    min-width: 160px;
+    width: 160px;
+    max-width: 160px;
   }
 
   .horizontal-scroll .book-img-container {
-    height: 160px;
+    height: 180px;
+  }
+
+  /* Result Count & Pagination */
+  .result-count {
+    padding: 0 1rem;
+    color: var(--text-primary);
+    font-weight: 500;
+    opacity: 0.7;
+  }
+
+  .pagination {
+    padding: 0 1rem;
+    gap: 1rem;
   }
 
   .status-badge {
