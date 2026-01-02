@@ -14,7 +14,7 @@ let currentSubCategory = null;
 let searchQuery = '';
 let currentLang = 'ar'; // Default to Arabic as per data
 let currentPage = 1;
-const ITEMS_PER_PAGE = 100;
+const ITEMS_PER_PAGE = 60;
 let cart = JSON.parse(localStorage.getItem('cart') || '[]');
 let currentTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
 document.documentElement.setAttribute('data-theme', currentTheme);
@@ -366,7 +366,7 @@ function renderBooks() {
 
   if (filteredBooks.length === 0) {
     container.innerHTML = `<div class="no-results" style="grid-column: 1 / -1; text-align:center; padding: 4rem; color: var(--text-muted); font-size: 1.2rem; background: var(--bg-surface); border-radius: var(--radius-md); border: 1px solid var(--border-color);">${currentLang === 'ar' ? 'لم يتم العثور على نتائج' : 'No books found'}</div>`;
-    countElement.innerText = `0 ${t.itemsFound}`;
+    countElement.innerHTML = `<span class="result-count-inner">0 ${t.itemsFound}</span>`;
     updatePagination(0);
     return;
   }
@@ -378,7 +378,7 @@ function renderBooks() {
   const end = start + ITEMS_PER_PAGE;
   const pageItems = filteredBooks.slice(start, end);
 
-  countElement.innerText = `${filteredBooks.length} ${t.itemsFound}`;
+  countElement.innerHTML = `<span class="result-count-inner">${filteredBooks.length} ${t.itemsFound}</span>`;
 
   container.innerHTML = pageItems.map((book, index) => {
     const absoluteIndex = start + index;
@@ -1137,18 +1137,22 @@ function renderFooter() {
 
 function renderBookCardSmall(book, absoluteIndex) {
   const t = translations[currentLang];
+  const isAvailable = book.availability === '1';
 
   return `
-    <div class="book-card small-card" onclick="window.openModal(${absoluteIndex})">
+    <div class="book-card small-card reveal" data-title="${book.title.replace(/"/g, '&quot;')}" onclick="window.openModal(${absoluteIndex})">
       <div class="book-info small-info">
         <div class="status-badge-container">
-          <span class="status-badge ${book.availability === '1' ? 'in-stock' : 'out-of-stock'}">
-            ${book.availability === '1' ? t.inStock : t.outOfAvailability}
+          <span class="status-badge ${isAvailable ? 'in-stock' : 'out-of-stock'}">
+            ${isAvailable ? t.inStock : t.outOfAvailability}
           </span>
         </div>
         <div class="book-title">${book.title}</div>
         <div class="card-actions">
           <div class="book-price">${book.price && !isNaN(parseFloat(book.price)) ? `${book.price} ${t.pricePrefix}` : t.priceOnRequest}</div>
+          <div class="cart-action-wrapper" onclick="event.stopPropagation()">
+            ${renderAddToCartButton(book)}
+          </div>
         </div>
       </div>
     </div>
