@@ -16,8 +16,7 @@ let currentLang = 'ar'; // Default to Arabic as per data
 let currentPage = 1;
 const ITEMS_PER_PAGE = 60;
 let cart = JSON.parse(localStorage.getItem('cart') || '[]');
-let currentTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-document.documentElement.setAttribute('data-theme', currentTheme);
+
 // Migration: Ensure all cart items have a quantity (if they were from the old array-based system)
 cart = cart.map(item => ({ ...item, quantity: item.quantity || 1 }));
 // deduplicate by title if multiple instances existed
@@ -455,11 +454,7 @@ window.handleSearch = (e) => {
   }, 250);
 };
 
-window.toggleTheme = () => {
-  currentTheme = currentTheme === 'light' ? 'dark' : 'light';
-  document.documentElement.setAttribute('data-theme', currentTheme);
-  localStorage.setItem('theme', currentTheme);
-};
+
 
 window.toggleLangDropdown = () => {
   const menu = document.getElementById('lang-menu');
@@ -935,11 +930,7 @@ function initAppStructure() {
           </div>
 
           <div class="header-actions">
-            <!-- Dynamic Theme Toggle -->
-            <button class="icon-btn theme-btn-animated" onclick="window.toggleTheme()" aria-label="Toggle Theme">
-              <span class="theme-icon-sun">☀️</span>
-              <span class="theme-icon-moon">🌙</span>
-            </button>
+
 
             <!-- Language Dropdown -->
             <div class="lang-dropdown-wrapper">
