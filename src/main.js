@@ -1,4 +1,8 @@
 import './style.css'
+import { inject } from '@vercel/analytics';
+
+// Initialize Vercel Web Analytics
+inject();
 
 const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1o_KJTYojVnXI96dkOqIZrGtXTIuwn5bx0z1IBfrXTJ0/gviz/tq?tqx=out:csv&sheet=Sheet1';
 const ORDER_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwQOHwQmOYCTg1D3FDRHp5zenrGH8BbnGfjV8nMgUpjyieAe4VphcvEEfvhHocqcgG9/exec';
@@ -279,7 +283,7 @@ function parseCSVLine(line) {
 }
 
 function formatCategory(cat, title) {
-  if (!cat || cat === 'غير مصنف' || cat === 'Uncategorized') {
+  if (!cat || cat === '��ير مصنف' || cat === 'Uncategorized') {
     // Basic heuristic categorization
     if (title.includes('رواية')) return 'رواية / أدب';
     if (title.includes('فقه') || title.includes('شرح')) return 'إسلامي / فقه';
