@@ -1,6 +1,6 @@
 import './style.css'
 
-const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1o_KJTYojVnXI96dkOqIZrGtXTIuwn5bx0z1IBfrXTJ0/export?format=csv';
+const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1o_KJTYojVnXI96dkOqIZrGtXTIuwn5bx0z1IBfrXTJ0/gviz/tq?tqx=out:csv&sheet=Sheet1';
 const ORDER_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwQOHwQmOYCTg1D3FDRHp5zenrGH8BbnGfjV8nMgUpjyieAe4VphcvEEfvhHocqcgG9/exec';
 
 let books = [];
@@ -41,7 +41,7 @@ const translations = {
     quantity: 'x',
     itemsFound: 'items found',
     loading: 'Loading collection...',
-    priceOnRequest: 'Price on request',
+    priceOnRequest: 'Contact to know',
     inStock: 'In Stock',
     outOfAvailability: 'Contact for Availability',
     reserveNow: 'Reserve Now',
@@ -80,7 +80,7 @@ const translations = {
     quantity: 'عدد',
     itemsFound: 'عناصر موجودة',
     loading: 'جاري تحميل المجموعة...',
-    priceOnRequest: 'السعر عند الطلب',
+    priceOnRequest: 'تواصل لمعرفة السعر',
     inStock: 'متوفر',
     outOfAvailability: 'تواصل لمعرفة التوفر',
     reserveNow: 'احجز الآن',
@@ -141,35 +141,115 @@ async function fetchBooks() {
   }
 }
 
+function normalizeAvailability(availabilityValue) {
+  if (!availabilityValue) return '0'; // Treat empty as not available
+
+  const stringValue = availabilityValue.toString().trim();
+
+  // If it's a number, treat as quantity
+  const numValue = parseInt(stringValue);
+  if (!isNaN(numValue)) {
+    // If quantity is greater than 0, it's available
+    return numValue > 0 ? '1' : '0';
+  }
+
+  // Handle text values
+  const normalizedValue = stringValue.toLowerCase();
+
+  // Common positive indicators
+  if (normalizedValue === '1' ||
+    normalizedValue === 'true' ||
+    normalizedValue === 'yes' ||
+    normalizedValue === 'available' ||
+    normalizedValue === 'in stock' ||
+    normalizedValue === 'instock' ||
+    normalizedValue === 'onhand' ||
+    normalizedValue === 'active') {
+    return '1';
+  }
+
+  // Common negative indicators
+  if (normalizedValue === '0' ||
+    normalizedValue === 'false' ||
+    normalizedValue === 'no' ||
+    normalizedValue === 'not available' ||
+    normalizedValue === 'out of stock' ||
+    normalizedValue === 'outofstock' ||
+    normalizedValue === 'discontinued' ||
+    normalizedValue === 'inactive') {
+    return '0';
+  }
+
+  // Default to not available if uncertain
+  return '0';
+}
+
 function parseCSV(csv) {
   const lines = csv.split('\n');
   const result = [];
   const headers = lines[0].split(',');
 
-  // Headers: Title,Cost,Price,Profit,Suggestted,Availability,Quantity,Author,Category,Overview
+  // Find column indices dynamically
+  const titleIndex = headers.findIndex(header => header.trim().toLowerCase() === 'title');
+  const costIndex = headers.findIndex(header => header.trim().toLowerCase() === 'cost');
+  const priceIndex = headers.findIndex(header => header.trim().toLowerCase() === 'price');
+  const profitIndex = headers.findIndex(header => header.trim().toLowerCase() === 'profit');
+  const suggestedIndex = headers.findIndex(header => header.trim().toLowerCase() === 'suggestted' || header.trim().toLowerCase() === 'suggested');
+  const availabilityIndex = headers.findIndex(header => header.trim().toLowerCase() === 'availability');
+  const quantityIndex = headers.findIndex(header => header.trim().toLowerCase() === 'quantity');
+  const authorIndex = headers.findIndex(header => header.trim().toLowerCase() === 'author');
+  const categoryIndex = headers.findIndex(header => header.trim().toLowerCase() === 'category');
+  const overviewIndex = headers.findIndex(header => header.trim().toLowerCase() === 'overview');
+
   for (let i = 1; i < lines.length; i++) {
     if (!lines[i].trim()) continue;
 
     const currentLine = parseCSVLine(lines[i]);
     if (currentLine.length < 2) continue;
 
+    const rawAvailability = availabilityIndex !== -1 ? currentLine[availabilityIndex] : currentLine[5];
+
+    // Parse the availability value to determine both status and quantity
+    let availabilityStatus = '0'; // Default to not available
+    let availabilityQuantity = 0; // Default quantity
+
+    if (rawAvailability && rawAvailability.startsWith('http')) {
+      // If it's a URL, treat as available and set quantity to 1
+      availabilityStatus = '1';
+      availabilityQuantity = 1;
+    } else {
+      // Parse the availability value
+      const parsedValue = rawAvailability ? rawAvailability.toString().trim() : '';
+      const numValue = parseInt(parsedValue);
+
+      if (!isNaN(numValue)) {
+        // It's a number - use it as quantity
+        availabilityQuantity = numValue;
+        availabilityStatus = numValue > 0 ? '1' : '0';
+      } else {
+        // It's text - normalize it
+        availabilityStatus = normalizeAvailability(rawAvailability);
+        availabilityQuantity = availabilityStatus === '1' ? 1 : 0; // Default to 1 if available, 0 if not
+      }
+    }
+
     const book = {
-      title: currentLine[0] || 'Unknown Title',
-      cost: currentLine[1],
-      price: currentLine[4], // "Suggestted" column at index 4
-      profit: currentLine[3],
-      availability: currentLine[5], // "Availability" column at index 5
-      author: currentLine[7] || '', // Author at index 7
-      category: formatCategory(currentLine[8], currentLine[0]), // "Category" at index 8
+      title: titleIndex !== -1 ? currentLine[titleIndex] || 'Unknown Title' : currentLine[0] || 'Unknown Title',
+      cost: costIndex !== -1 ? currentLine[costIndex] : currentLine[1],
+      price: suggestedIndex !== -1 ? currentLine[suggestedIndex] : (priceIndex !== -1 ? currentLine[priceIndex] : currentLine[4]), // "Suggestted" column at index 4
+      profit: profitIndex !== -1 ? currentLine[profitIndex] : currentLine[3],
+      availability: availabilityStatus, // '1' if available, '0' if not
+      availabilityQuantity: availabilityQuantity, // Actual quantity available
+      author: authorIndex !== -1 ? currentLine[authorIndex] || '' : currentLine[7] || '', // Author
+      category: categoryIndex !== -1 ? formatCategory(currentLine[categoryIndex], currentLine[titleIndex !== -1 ? titleIndex : 0]) : formatCategory(currentLine[8], currentLine[0]), // "Category"
       image: null,
       isPlaceholder: true
     };
 
-    // Heuristic: If availability column starts with http, it's a manual image URL
-    if (book.availability && book.availability.startsWith('http')) {
-      book.image = book.availability;
+    // Heuristic: If raw availability column starts with http, it's a manual image URL
+    if (rawAvailability && rawAvailability.startsWith('http')) {
+      book.image = rawAvailability;
       book.isPlaceholder = false;
-      book.availability = '1';
     }
 
     result.push(book);
@@ -507,6 +587,9 @@ function filterBooks() {
 function renderBookCard(book, absoluteIndex, pageIndex) {
   const t = translations[currentLang];
   const isAvailable = book.availability === '1';
+  const availabilityText = isAvailable
+    ? (book.availabilityQuantity > 1 ? `${book.availabilityQuantity} ${t.inStock}` : t.inStock)
+    : t.outOfAvailability;
 
   return `
     <div class="book-card reveal" data-title="${book.title.replace(/"/g, '&quot;')}" style="--item-index: ${pageIndex % 10}" onclick="window.openModal(${absoluteIndex})">
@@ -519,12 +602,12 @@ function renderBookCard(book, absoluteIndex, pageIndex) {
       <div class="book-info">
         <div class="status-badge-container">
           <span class="status-badge ${isAvailable ? 'in-stock' : 'out-of-stock'}">
-            ${isAvailable ? t.inStock : t.outOfAvailability}
+            ${availabilityText}
           </span>
         </div>
         <div class="book-title">${book.title}</div>
         <div class="card-actions">
-          <div class="book-price">${book.price && !isNaN(parseFloat(book.price)) ? `${book.price} ${t.pricePrefix}` : t.priceOnRequest}</div>
+          <div class="book-price">${book.price && !isNaN(parseFloat(book.price)) && parseFloat(book.price) > 0 ? `${book.price} ${t.pricePrefix}` : t.priceOnRequest}</div>
           <div class="cart-action-wrapper" onclick="event.stopPropagation()">
             ${renderAddToCartButton(book)}
           </div>
@@ -632,7 +715,20 @@ function updateOpenModals(title) {
     const book = books.find(b => b.title === title);
     const modalTitle = modal.querySelector('.modal-title');
     if (modalTitle && modalTitle.innerText === title && book) {
-      // We need to find the action area in the modal
+      // Update the status badge with quantity info
+      const statusBadge = modal.querySelector('.status-badge');
+      if (statusBadge) {
+        const t = translations[currentLang];
+        const isAvailable = book.availability === '1';
+        const availabilityText = isAvailable
+          ? (book.availabilityQuantity > 1 ? `${book.availabilityQuantity} ${t.inStock}` : t.inStock)
+          : t.outOfAvailability;
+
+        statusBadge.textContent = availabilityText;
+        statusBadge.className = 'status-badge ' + (isAvailable ? 'in-stock' : 'out-of-stock');
+      }
+
+      // Update the action area in the modal
       const modalActions = modal.querySelector('.modal-actions');
       if (modalActions) {
         // Re-render modal action part
@@ -642,7 +738,7 @@ function updateOpenModals(title) {
           modalActions.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem;">
               <div class="book-price modal-price-lg">
-                ${book.price && !isNaN(parseFloat(book.price)) ? `${book.price} ${t.pricePrefix}` : t.priceOnRequest}
+                ${book.price && !isNaN(parseFloat(book.price)) && parseFloat(book.price) > 0 ? `${book.price} ${t.pricePrefix}` : t.priceOnRequest}
               </div>
             </div>
             <button class="btn-primary" onclick="window.addToCartByTitle('${book.title.replace(/'/g, "\\'")}')">${t.addToCart}</button>
@@ -688,7 +784,7 @@ function renderCartModal() {
     return;
   }
 
-  const total = cart.reduce((sum, item) => sum + (parseFloat(item.price) || 0) * item.quantity, 0);
+  const total = cart.reduce((sum, item) => sum + (parseFloat(item.price) && parseFloat(item.price) > 0 ? parseFloat(item.price) : 0) * item.quantity, 0);
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   container.innerHTML = `
@@ -697,7 +793,7 @@ function renderCartModal() {
         <div class="cart-item">
           <div class="cart-item-info" style="flex:1;">
             <h4 class="cart-item-title">${item.title}</h4>
-            <p style="color:var(--text-secondary); font-size:0.85rem; margin-bottom:0.5rem;">${item.price && !isNaN(parseFloat(item.price)) ? `${item.price}` : t.priceOnRequest} ${translations[currentLang].pricePrefix}</p>
+            <p style="color:var(--text-secondary); font-size:0.85rem; margin-bottom:0.5rem;">${item.price && !isNaN(parseFloat(item.price)) && parseFloat(item.price) > 0 ? `${item.price}` : t.priceOnRequest} ${translations[currentLang].pricePrefix}</p>
             <div class="qty-controls">
                 <button class="qty-btn minus" onclick="window.decrementQuantity('${item.title.replace(/'/g, "\\'")}')">−</button>
                 <span class="qty-val">${item.quantity}</span>
@@ -774,7 +870,7 @@ window.handleOrder = async (e) => {
   const orderData = {
     customer: Object.fromEntries(formData),
     items: cart.map(item => `${item.title} (${translations[currentLang].quantity} ${item.quantity})`).join(', '),
-    total: cart.reduce((sum, item) => sum + (parseFloat(item.price) || 0) * item.quantity, 0).toFixed(2),
+    total: cart.reduce((sum, item) => sum + (parseFloat(item.price) && parseFloat(item.price) > 0 ? parseFloat(item.price) : 0) * item.quantity, 0).toFixed(2),
     timestamp: new Date().toLocaleString()
   };
 
@@ -835,20 +931,25 @@ window.openModal = (index) => {
 
   const modalContent = modal.querySelector('.modal-content');
 
+  const isAvailable = book.availability === '1';
+  const availabilityText = isAvailable
+    ? (book.availabilityQuantity > 1 ? `${book.availabilityQuantity} ${t.inStock}` : t.inStock)
+    : t.outOfAvailability;
+
   modalContent.innerHTML = `
     <div class="modal-simple-layout">
         <button class="modal-close" onclick="window.closeModal()">&times;</button>
         <h2 class="modal-title">${book.title}</h2>
         <div class="status-badge-container">
-          <span class="status-badge ${book.availability === '1' ? 'in-stock' : 'out-of-stock'}">
-            ${book.availability === '1' ? t.inStock : t.outOfAvailability}
+          <span class="status-badge ${isAvailable ? 'in-stock' : 'out-of-stock'}">
+            ${availabilityText}
           </span>
         </div>
-        
+
         <div class="modal-actions">
            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem;">
              <div class="book-price modal-price-lg">
-              ${book.price && !isNaN(parseFloat(book.price)) ? `${book.price} ${t.pricePrefix}` : t.priceOnRequest}
+              ${book.price && !isNaN(parseFloat(book.price)) && parseFloat(book.price) > 0 ? `${book.price} ${t.pricePrefix}` : t.priceOnRequest}
              </div>
            </div>
            <button class="btn-primary" onclick="window.addToCartByTitle('${book.title.replace(/'/g, "\\'")}')">${t.addToCart}</button>
@@ -1112,7 +1213,9 @@ function renderNewArrivals() {
   const t = translations[currentLang];
   if (!container || books.length === 0) return;
 
-  const newArrivals = books.slice(-20).reverse();
+  // Filter to only show available books
+  const availableBooks = books.filter(book => book.availability === '1');
+  const newArrivals = availableBooks.slice(-20).reverse();
 
   container.innerHTML = `
     <h2 class="section-title">${t.newItems}</h2>
@@ -1129,7 +1232,10 @@ function renderBestSellers() {
   const t = translations[currentLang];
   if (!container || books.length === 0) return;
 
-  const bestSellers = [...books]
+  // Filter to only show available books
+  const availableBooks = books.filter(book => book.availability === '1');
+
+  const bestSellers = [...availableBooks]
     .sort((a, b) => {
       const profitA = parseFloat(a.profit) || parseFloat(a.price) || 0;
       const profitB = parseFloat(b.profit) || parseFloat(b.price) || 0;
@@ -1205,6 +1311,9 @@ function renderFooter() {
 function renderBookCardSmall(book, absoluteIndex) {
   const t = translations[currentLang];
   const isAvailable = book.availability === '1';
+  const availabilityText = isAvailable
+    ? (book.availabilityQuantity > 1 ? `${book.availabilityQuantity} ${t.inStock}` : t.inStock)
+    : t.outOfAvailability;
 
   return `
     <div class="book-card small-card reveal" data-title="${book.title.replace(/"/g, '&quot;')}" onclick="window.openModal(${absoluteIndex})">
@@ -1217,12 +1326,12 @@ function renderBookCardSmall(book, absoluteIndex) {
       <div class="book-info small-info">
         <div class="status-badge-container">
           <span class="status-badge ${isAvailable ? 'in-stock' : 'out-of-stock'}">
-            ${isAvailable ? t.inStock : t.outOfAvailability}
+            ${availabilityText}
           </span>
         </div>
         <div class="book-title small-title">${book.title}</div>
         <div class="card-actions">
-          <div class="book-price" style="font-size:0.9rem;">${book.price && !isNaN(parseFloat(book.price)) ? `${book.price} ${t.pricePrefix}` : t.priceOnRequest}</div>
+          <div class="book-price" style="font-size:0.9rem;">${book.price && !isNaN(parseFloat(book.price)) && parseFloat(book.price) > 0 ? `${book.price} ${t.pricePrefix}` : t.priceOnRequest}</div>
           <div class="cart-action-wrapper" onclick="event.stopPropagation()">
             ${renderAddToCartButton(book)}
           </div>
