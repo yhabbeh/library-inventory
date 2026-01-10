@@ -112,11 +112,24 @@ const translations = {
   }
 };
 
+// Fisher-Yates shuffle algorithm to randomize array
+function shuffleArray(array) {
+  const newArray = [...array]; // Create a copy to avoid mutating the original
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
+}
+
 async function fetchBooks() {
   try {
     const response = await fetch(SHEET_URL);
     const csvData = await response.text();
     books = parseCSV(csvData);
+
+    // Shuffle books randomly each time the site loads
+    books = shuffleArray(books);
 
     // Generate categories and hierarchy
     processCategories(books);
