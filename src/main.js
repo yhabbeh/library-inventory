@@ -422,12 +422,14 @@ window.setLanguage = (lang) => {
 
   // Instead of full renderUI, we update translatable parts
   updateUIVisuals();
+  updateMetaTags(); // Update meta tags after language change
 };
 
 window.setPage = (page) => {
   currentPage = page;
   renderBooks();
   window.scrollTo({ top: 0, behavior: 'smooth' });
+  updateMetaTags(); // Update meta tags after page change
 };
 
 window.setCategory = (cat) => {
@@ -435,12 +437,14 @@ window.setCategory = (cat) => {
   currentSubCategory = null; // Reset sub-category when parent changes
   filterBooks();
   renderCategories();
+  updateMetaTags(); // Update meta tags after category change
 };
 
 window.setSubCategory = (sub) => {
   currentSubCategory = sub;
   filterBooks();
   renderCategories(); // Re-render to update active state
+  updateMetaTags(); // Update meta tags after sub-category change
 };
 
 let searchTimeout;
@@ -451,6 +455,7 @@ window.handleSearch = (e) => {
     searchQuery = query;
     currentPage = 1;
     filterBooks();
+    updateMetaTags(); // Update meta tags after search
   }, 250);
 };
 
@@ -496,6 +501,7 @@ function filterBooks() {
     return matchesCategory && matchesSearch;
   });
   renderBooks();
+  updateMetaTags(); // Update meta tags after filtering
 }
 
 function renderBookCard(book, absoluteIndex, pageIndex) {
@@ -918,6 +924,8 @@ function updateUIVisuals() {
   if (footerContainer) {
     footerContainer.outerHTML = renderFooter();
   }
+
+  updateMetaTags(); // Update meta tags after UI visuals update
 }
 
 function initAppStructure() {
@@ -1025,6 +1033,67 @@ function initAppStructure() {
   }
 }
 
+function updateMetaTags() {
+  const t = translations[currentLang];
+  const currentUrl = window.location.href;
+  const baseUrl = 'https://library-inventory-seven.vercel.app';
+
+  // Update title based on current view
+  let pageTitle = t.title;
+  let pageDescription = t.subtitle;
+
+  if (searchQuery) {
+    pageTitle = `"${searchQuery}" - ${t.title}`;
+    pageDescription = `نتائج البحث عن "${searchQuery}" في ${t.title}. ${t.subtitle}`;
+  } else if (currentCategory && currentCategory !== t.all) {
+    pageTitle = `${currentCategory} - ${t.title}`;
+    pageDescription = `تصفح كتب ${currentCategory} في ${t.title}. ${t.subtitle}`;
+  }
+
+  // Update meta tags
+  document.title = pageTitle;
+
+  // Update description meta tag
+  const descTag = document.querySelector('meta[name="description"]');
+  if (descTag) {
+    descTag.setAttribute('content', pageDescription);
+  } else {
+    // Create description meta tag if it doesn't exist
+    const metaDesc = document.createElement('meta');
+    metaDesc.setAttribute('name', 'description');
+    metaDesc.setAttribute('content', pageDescription);
+    document.head.appendChild(metaDesc);
+  }
+
+  // Update canonical URL
+  const canonicalTag = document.querySelector('link[rel="canonical"]');
+  if (canonicalTag) {
+    canonicalTag.setAttribute('href', currentUrl);
+  } else {
+    // Create canonical tag if it doesn't exist
+    const linkCanonical = document.createElement('link');
+    linkCanonical.setAttribute('rel', 'canonical');
+    linkCanonical.setAttribute('href', currentUrl);
+    document.head.appendChild(linkCanonical);
+  }
+
+  // Update Open Graph tags
+  const ogTitleTag = document.querySelector('meta[property="og:title"]');
+  if (ogTitleTag) {
+    ogTitleTag.setAttribute('content', pageTitle);
+  }
+
+  const ogDescTag = document.querySelector('meta[property="og:description"]');
+  if (ogDescTag) {
+    ogDescTag.setAttribute('content', pageDescription);
+  }
+
+  const ogUrlTag = document.querySelector('meta[property="og:url"]');
+  if (ogUrlTag) {
+    ogUrlTag.setAttribute('content', currentUrl);
+  }
+}
+
 function renderUI() {
   initAppStructure();
   renderBestSellers();
@@ -1032,6 +1101,7 @@ function renderUI() {
   renderCategories();
   renderBooks();
   initRevealObserver();
+  updateMetaTags(); // Update meta tags after initial render
 }
 
 // Image fetching logic removed
