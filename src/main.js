@@ -69,7 +69,8 @@ const translations = {
     orderSuccess: 'Thank you! Your order has been placed.',
     total: 'Total',
     items: 'items',
-    remove: 'Remove'
+    remove: 'Remove',
+    promocode: 'Promo Code'
   },
   ar: {
     title: 'مكتبة وعي',
@@ -108,7 +109,8 @@ const translations = {
     orderSuccess: 'شكراً لك! تم استلام طلبك بنجاح.',
     total: 'المجموع',
     items: 'عناصر',
-    remove: 'حذف'
+    remove: 'حذف',
+    promocode: 'رمز العروض'
   }
 };
 
@@ -854,6 +856,10 @@ window.openCheckout = () => {
           <label>${t.address}</label>
           <textarea name="address" class="form-control" required placeholder=${t.addressPlaceholder}></textarea>
         </div>
+        <div class="form-group">
+          <label>${t.promocode}</label>
+          <input type="text" name="promocode" class="form-control" placeholder="${t.promocode}">
+        </div>
         
         <div style="background: var(--bg-surface); padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1.5rem;">
             <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem; font-weight:600;">
@@ -891,6 +897,7 @@ window.handleOrder = async (e) => {
   formDataToSubmit.append('name', orderData.customer.name);
   formDataToSubmit.append('phone', orderData.customer.phone);
   formDataToSubmit.append('address', orderData.customer.address);
+  formDataToSubmit.append('promocode', orderData.customer.promocode || '');
   formDataToSubmit.append('items', orderData.items);
   formDataToSubmit.append('total', orderData.total);
   formDataToSubmit.append('timestamp', orderData.timestamp);
