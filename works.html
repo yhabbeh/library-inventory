@@ -77,6 +77,18 @@
         </main>
     </div>
 
+    <!-- Authentication Modal -->
+    <div id="auth-modal" class="modal" style="display: flex;">
+        <div class="modal-content">
+            <h2>تسجيل الدخول</h2>
+            <p>هذه الصفحة محمية. يرجى إدخال كلمة المرور.</p>
+            <input type="password" id="auth-password" placeholder="Passcode"
+                style="width: 100%; padding: 10px; margin: 10px 0;">
+            <button id="btn-login" class="btn-primary">دخول</button>
+            <p id="auth-error" class="error" style="color:red; display:none;">كلمة المرور خاطئة</p>
+        </div>
+    </div>
+
     <!-- Apps Script Configuration Modal -->
     <div id="config-modal" class="modal">
         <div class="modal-content">
