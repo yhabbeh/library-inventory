@@ -236,6 +236,11 @@ async function uploadImage() {
                 currentBook.image = result.url;
                 currentBook.isPlaceholder = false;
 
+                // Save to local storage for persistent immediate feedback
+                import('./data.js').then(({ saveLocalImageOverride }) => {
+                    saveLocalImageOverride(currentBook.title, result.url);
+                });
+
                 // Simulating immediate feedback in UI
                 renderBookDetails(currentBook);
 

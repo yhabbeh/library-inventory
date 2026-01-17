@@ -5,7 +5,42 @@ export async function fetchBooksData() {
     const url = `${SHEET_URL}&_t=${Date.now()}`;
     const response = await fetch(url);
     const csvData = await response.text();
-    return parseCSV(csvData);
+    let books = parseCSV(csvData);
+
+    // Apply local overrides (instant updates)
+    books = applyLocalOverrides(books);
+
+    return books;
+}
+
+export function saveLocalImageOverride(title, imageUrl) {
+    try {
+        const overrides = JSON.parse(localStorage.getItem('library_image_overrides') || '{}');
+        overrides[title] = imageUrl;
+        localStorage.setItem('library_image_overrides', JSON.stringify(overrides));
+    } catch (e) {
+        console.warn('Failed to save local override', e);
+    }
+}
+
+function applyLocalOverrides(books) {
+    try {
+        const overrides = JSON.parse(localStorage.getItem('library_image_overrides') || '{}');
+        return books.map(book => {
+            if (overrides[book.title]) {
+                book.image = overrides[book.title];
+                // Check if it is a google drive link to normalize it
+                if (book.image.includes('drive.google') || book.image.includes('googleusercontent')) {
+                    book.image = normalizeGoogleDriveImage(book.image);
+                }
+                book.isPlaceholder = false;
+            }
+            return book;
+        });
+    } catch (e) {
+        console.warn('Failed to apply local overrides', e);
+        return books;
+    }
 }
 
 export function normalizeAvailability(availabilityValue) {
