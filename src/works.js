@@ -20,14 +20,43 @@ const DOM = {
     uploadBtn: document.getElementById('btn-upload'),
     skipBtn: document.getElementById('btn-skip'),
     uploadStatus: document.getElementById('upload-status'),
+    authModal: document.getElementById('auth-modal'),
+    authPasswordInput: document.getElementById('auth-password'),
+    loginBtn: document.getElementById('btn-login'),
+    authError: document.getElementById('auth-error'),
     configModal: document.getElementById('config-modal'),
     scriptUrlInput: document.getElementById('script-url-input'),
     saveConfigBtn: document.getElementById('save-config')
 };
 
 // --- Initialization ---
+const AUTH_KEY = 'library_admin_session';
+const PASS_CODE = 'admin123';
 
 async function init() {
+    if (!sessionStorage.getItem(AUTH_KEY)) {
+        DOM.authModal.style.display = 'flex';
+        DOM.loginBtn.addEventListener('click', checkAuth);
+        DOM.authPasswordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') checkAuth();
+        });
+        return;
+    }
+    DOM.authModal.style.display = 'none';
+    loadApp();
+}
+
+function checkAuth() {
+    if (DOM.authPasswordInput.value === PASS_CODE) {
+        sessionStorage.setItem(AUTH_KEY, 'true');
+        DOM.authModal.style.display = 'none';
+        loadApp();
+    } else {
+        DOM.authError.style.display = 'block';
+    }
+}
+
+async function loadApp() {
     if (!scriptUrl) {
         DOM.configModal.style.display = 'flex';
     }
