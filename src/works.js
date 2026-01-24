@@ -3,7 +3,9 @@ import { fetchBooksData } from './data.js';
 let books = [];
 let filteredBooks = [];
 let currentBook = null;
-let scriptUrl = localStorage.getItem('library_script_url') || '';
+
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwXdQ_DgPG3j7Ehz9e6KqpXCrXjHeFabUO0Y9WdQvjTCIOvYigZvepKlK_B3ibAe3k/exec';
+
 
 const DOM = {
     searchInput: document.getElementById('book-search'),
@@ -24,12 +26,7 @@ const DOM = {
     authModal: document.getElementById('auth-modal'),
     authPasswordInput: document.getElementById('auth-password'),
     loginBtn: document.getElementById('btn-login'),
-    authError: document.getElementById('auth-error'),
-    configModal: document.getElementById('config-modal'),
-    scriptUrlInput: document.getElementById('script-url-input'),
-    saveConfigBtn: document.getElementById('save-config'),
-    configError: document.getElementById('config-error'),
-    settingsBtn: document.getElementById('settings-btn')
+    authError: document.getElementById('auth-error')
 };
 
 // --- Initialization ---
@@ -53,8 +50,6 @@ function checkAuth() {
     if (DOM.authPasswordInput.value === PASS_CODE) {
         sessionStorage.setItem(AUTH_KEY, 'true');
         DOM.authModal.style.display = 'none';
-
-        // Only proceed to load app after successful authentication
         loadApp();
     } else {
         DOM.authError.classList.add('show');
@@ -62,7 +57,6 @@ function checkAuth() {
 }
 
 async function loadApp() {
-    // Load books data first
     try {
         books = await fetchBooksData();
         console.log('Books loaded:', books.length);
@@ -71,83 +65,13 @@ async function loadApp() {
         alert('Failed to load books database');
     }
 
-    // Only show config modal after successful authentication AND if no script URL exists
-    if (!scriptUrl) {
-        DOM.configModal.style.display = 'flex';
-    } else {
-        // If we have a script URL, proceed directly to the main interface
-        console.log('Using existing Apps Script URL');
-    }
+    console.log('Using Apps Script URL:', SCRIPT_URL);
+
 
     setupEventListeners();
 }
 
-// Validate the Apps Script URL
-async function validateScriptUrl(url) {
-    try {
-        // Test the connection by sending a simple test request
-        // Using GET method first to check if the endpoint is accessible
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            // Send a minimal request to test connectivity
-            body: JSON.stringify({
-                action: 'validate',
-                timestamp: Date.now()
-            })
-        });
 
-        // Check if the response is OK and parse it
-        if (!response.ok) {
-            return { valid: false, message: `استجاب الخادم بالحالة: ${response.status} ${response.statusText}` };
-        }
-
-        let result;
-        try {
-            result = await response.json();
-        } catch (parseError) {
-            // If JSON parsing fails, the server might be returning plain text
-            const textResponse = await response.text();
-            console.warn('Non-JSON response from server:', textResponse);
-            // If we got a response at all, consider it a connection success
-            return { valid: true, message: 'تم الاتصال بالخادم ولكن التنسيق غير متوقع.' };
-        }
-
-        // Check if the response has a status or similar property indicating success
-        if (result && (result.status === 'success' || result.result || result.message)) {
-            return { valid: true, message: 'الاتصال ناجح!' };
-        } else {
-            return { valid: false, message: 'تنسيق الاستجابة من الخادم غير متوقع' };
-        }
-    } catch (error) {
-        console.error('Validation failed:', error);
-
-        // Provide more specific error messages
-        if (error.name === 'TypeError' && error.message.includes('fetch')) {
-            return { valid: false, message: 'غير قادر على الاتصال بالخادم. يرجى التحقق من رابط Apps Script.' };
-        } else if (error.message.includes('CORS')) {
-            return { valid: false, message: 'خطأ في CORS: يرجى التحقق من إعدادات نشر Apps Script.' };
-        } else if (error.message.includes('404')) {
-            return { valid: false, message: 'نقطة النهاية غير موجودة. يرجى التحقق من الرابط.' };
-        } else if (error.message.includes('403')) {
-            return { valid: false, message: 'تم رفض الوصول. يرجى التحقق من أذونات تنفيذ Apps Script.' };
-        } else {
-            return { valid: false, message: `فشل الاتصال: ${error.message || 'خطأ غير معروف'}` };
-        }
-    }
-}
-
-// Helper functions for config error handling
-function showConfigError(message) {
-    DOM.configError.textContent = message;
-    DOM.configError.classList.add('show');
-}
-
-function hideConfigError() {
-    DOM.configError.classList.remove('show');
-}
 
 function setupEventListeners() {
     // Search
@@ -164,63 +88,8 @@ function setupEventListeners() {
     DOM.uploadBtn.addEventListener('click', uploadImage);
     DOM.skipBtn.addEventListener('click', resetView);
 
-    // Config
-    DOM.saveConfigBtn.addEventListener('click', async () => {
-        const url = DOM.scriptUrlInput.value.trim();
-        if (!url) {
-            showConfigError('الرجاء إدخال رابط صحيح');
-            return;
-        }
-
-        // Validate the URL format first
-        try {
-            new URL(url);
-        } catch (e) {
-            showConfigError('تنسيق الرابط غير صحيح. يرجى إدخال رابط صحيح.');
-            return;
-        }
-
-        // Show loading state with spinner
-        DOM.saveConfigBtn.innerHTML = '<span class="spinner"></span> جاري الاختبار...';
-        DOM.saveConfigBtn.disabled = true;
-
-        try {
-            const validationResult = await validateScriptUrl(url);
-
-            if (validationResult.valid) {
-                scriptUrl = url;
-                localStorage.setItem('library_script_url', url);
-                DOM.configModal.style.display = 'none';
-
-                // Reset button
-                DOM.saveConfigBtn.innerHTML = '💾 حفظ الإعدادات';
-                DOM.saveConfigBtn.disabled = false;
-                hideConfigError();
-            } else {
-                showConfigError(validationResult.message);
-                DOM.saveConfigBtn.innerHTML = '💾 حفظ الإعدادات';
-                DOM.saveConfigBtn.disabled = false;
-            }
-        } catch (error) {
-            console.error('Configuration validation failed:', error);
-            showConfigError(`فشل الاختبار: ${error.message || 'خطأ غير معروف'}`);
-            DOM.saveConfigBtn.innerHTML = '💾 حفظ الإعدادات';
-            DOM.saveConfigBtn.disabled = false;
-        }
-    });
-
-    // Back to search button
     DOM.btnBackToSearch.addEventListener('click', resetView);
 
-    // Settings button to reopen config modal
-    if (DOM.settingsBtn) {
-        DOM.settingsBtn.addEventListener('click', () => {
-            DOM.configModal.style.display = 'flex';
-            if (scriptUrl) {
-                DOM.scriptUrlInput.value = scriptUrl;
-            }
-        });
-    }
 }
 
 // --- Search Logic ---
@@ -268,13 +137,8 @@ function selectBook(book) {
     DOM.searchInput.value = '';
     DOM.searchResults.style.display = 'none';
 
-    // UI Switch
     DOM.searchSection.classList.remove('active');
-    DOM.searchSection.classList.add('hidden'); // Optional: hide search or keep it? 
-    // Design choice: Keep search visible but collapsed? Or switch views?
-    // User asked for "Skip to another book", implying a flow.
-    // Let's just show the edit section and maybe keep search accessible if needed?
-    // Let's make it a step flow.
+    DOM.searchSection.classList.add('hidden');
 
     DOM.editSection.classList.remove('hidden');
     DOM.editSection.classList.add('active');
@@ -350,13 +214,12 @@ function clearPreview() {
 // --- Upload Logic ---
 
 async function uploadImage() {
-    if (!currentBook || !DOM.fileInput.files[0] || !scriptUrl) return;
+    if (!currentBook || !DOM.fileInput.files[0]) return;
 
     const file = DOM.fileInput.files[0];
     DOM.uploadBtn.disabled = true;
     DOM.uploadBtn.textContent = 'جاري الرفع...';
 
-    // Convert to Base64 (remove prefix)
     const reader = new FileReader();
     reader.onload = async (e) => {
         const base64Data = e.target.result.split(',')[1];
@@ -372,15 +235,15 @@ async function uploadImage() {
         };
 
         try {
-            const response = await fetch(scriptUrl, {
+            const response = await fetch(SCRIPT_URL, {
                 method: 'POST',
+                // Use simple content type to avoid CORS preflight issues with Apps Script
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'text/plain;charset=utf-8',
                 },
                 body: JSON.stringify(payload)
             });
 
-            // Check if the response is ok
             if (!response.ok) {
                 throw new Error(`Server responded with status: ${response.status} ${response.statusText}`);
             }
@@ -391,19 +254,15 @@ async function uploadImage() {
                 DOM.uploadStatus.innerHTML = '<span class="status-indicator success">✓ نجاح</span> تم الرفع بنجاح!';
                 DOM.uploadStatus.classList.add('success');
 
-                // Update local object
                 currentBook.image = result.url;
                 currentBook.isPlaceholder = false;
 
-                // Save to local storage for persistent immediate feedback
                 import('./data.js').then(({ saveLocalImageOverride }) => {
                     saveLocalImageOverride(currentBook.title, result.url);
                 });
 
-                // Simulating immediate feedback in UI
                 renderBookDetails(currentBook);
 
-                // Auto-advance after small delay
                 setTimeout(() => {
                     if (confirm('تم الحفظ. الانتقال للكتاب التالي؟')) {
                         resetView();
@@ -420,7 +279,6 @@ async function uploadImage() {
             console.error('Upload failed', error);
             let errorMessage = error.message;
 
-            // More specific error messages
             if (error.message.includes('Failed to fetch')) {
                 errorMessage = 'Unable to connect to the server. Please check the Apps Script URL.';
             } else if (error.message.includes('CORS')) {

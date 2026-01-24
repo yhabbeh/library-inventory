@@ -2011,6 +2011,7 @@ select,
 button {
   font-family: inherit;
 }
+
 /* --- Works Page Specific Styles --- */
 
 .works-app {
@@ -2160,7 +2161,8 @@ button {
   border: 1px solid var(--border-color);
 }
 
-.current-image-status h3, .upload-controls h3 {
+.current-image-status h3,
+.upload-controls h3 {
   margin-bottom: 1.2rem;
   font-size: 1.1rem;
   color: var(--text-secondary);
@@ -2207,7 +2209,8 @@ button {
   justify-content: center;
 }
 
-.file-drop-zone:hover, .file-drop-zone.dragover {
+.file-drop-zone:hover,
+.file-drop-zone.dragover {
   border-color: var(--primary);
   background: var(--primary-light);
 }
@@ -2259,6 +2262,7 @@ button {
   background: var(--primary);
   color: white;
 }
+
 .btn-primary:disabled {
   background: var(--text-tertiary);
   cursor: not-allowed;
@@ -2268,6 +2272,7 @@ button {
   background: var(--bg-surface);
   color: var(--text-secondary);
 }
+
 .btn-secondary:hover {
   background: var(--border-color);
 }
@@ -2279,19 +2284,25 @@ button {
   min-height: 1.5em;
 }
 
-.status-msg.success { color: var(--success-text); }
-.status-msg.error { color: var(--error-text); }
+.status-msg.success {
+  color: var(--success-text);
+}
+
+.status-msg.error {
+  color: var(--error-text);
+}
 
 /* Modal */
 .modal {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.5);
+  background: rgba(0, 0, 0, 0.5);
   align-items: center;
   justify-content: center;
   z-index: 1000;
 }
+
 .modal-content {
   background: white;
   padding: 2rem;
@@ -2302,9 +2313,12 @@ button {
 }
 
 @media (max-width: 768px) {
-  .works-header, .works-container {
+
+  .works-header,
+  .works-container {
     padding: 1rem;
   }
+
   .action-area {
     grid-template-columns: 1fr;
   }
