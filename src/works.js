@@ -20,6 +20,7 @@ const DOM = {
     uploadBtn: document.getElementById('btn-upload'),
     skipBtn: document.getElementById('btn-skip'),
     uploadStatus: document.getElementById('upload-status'),
+    btnBackToSearch: document.getElementById('btn-back-to-search'),
     authModal: document.getElementById('auth-modal'),
     authPasswordInput: document.getElementById('auth-password'),
     loginBtn: document.getElementById('btn-login'),
@@ -52,7 +53,7 @@ function checkAuth() {
         DOM.authModal.style.display = 'none';
         loadApp();
     } else {
-        DOM.authError.style.display = 'block';
+        DOM.authError.classList.add('show');
     }
 }
 
@@ -96,6 +97,9 @@ function setupEventListeners() {
             DOM.configModal.style.display = 'none';
         }
     });
+
+    // Back to search button
+    DOM.btnBackToSearch.addEventListener('click', resetView);
 }
 
 // --- Search Logic ---
@@ -167,7 +171,7 @@ function renderBookDetails(book) {
     if (book.image && !book.isPlaceholder) {
         DOM.currentImageDisplay.innerHTML = `<img src="${book.image}" alt="Book Cover">`;
     } else {
-        DOM.currentImageDisplay.innerHTML = `<div class="placeholder">لا توجد صورة</div>`;
+        DOM.currentImageDisplay.innerHTML = `<div class="placeholder"><span class="icon">📷</span><p>لا توجد صورة متاحة</p></div>`;
     }
 
     clearPreview();
@@ -258,7 +262,7 @@ async function uploadImage() {
             const result = await response.json();
 
             if (result.status === 'success') {
-                DOM.uploadStatus.textContent = 'تم الرفع بنجاح! الرابط: ' + result.url;
+                DOM.uploadStatus.innerHTML = '<span class="status-indicator success">✓ نجاح</span> تم الرفع بنجاح!';
                 DOM.uploadStatus.classList.add('success');
 
                 // Update local object
@@ -288,7 +292,7 @@ async function uploadImage() {
 
         } catch (error) {
             console.error('Upload failed', error);
-            DOM.uploadStatus.textContent = 'فشل الرفع: ' + error.message;
+            DOM.uploadStatus.innerHTML = '<span class="status-indicator error">✗ خطأ</span> فشل الرفع: ' + error.message;
             DOM.uploadStatus.classList.add('error');
             DOM.uploadBtn.disabled = false;
             DOM.uploadBtn.textContent = 'حاول مرة أخرى';

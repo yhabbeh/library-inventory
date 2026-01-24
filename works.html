@@ -7,13 +7,14 @@
     <meta name="referrer" content="no-referrer">
     <title>Works Management - Update Book Images</title>
     <link rel="stylesheet" href="./src/style.css">
+    <link rel="stylesheet" href="./src/works-style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         /* Minimal inline styles for specific layout needs, rest in style.css */
         body {
-            background-color: var(--bg-main);
+            background-color: var(--bg-body);
             color: var(--text-primary);
         }
     </style>
@@ -32,45 +33,62 @@
         <main class="works-container">
             <!-- Processing Step 1: Search -->
             <section id="search-section" class="step-section active">
-                <div class="search-box-large">
-                    <label for="book-search">ابحث عن كتاب لتعديله</label>
-                    <input type="text" id="book-search" placeholder="اكتب اسم الكتاب..." autocomplete="off">
-                    <div id="search-results" class="search-results-dropdown"></div>
+                <div class="container-inner">
+                    <h2>البحث عن الكتب</h2>
+                    <p class="section-description">ابحث عن كتاب لتحديث صورته</p>
+
+                    <div class="search-box-large">
+                        <label for="book-search">ابحث عن كتاب لتعديله</label>
+                        <input type="text" id="book-search" placeholder="اكتب اسم الكتاب أو المؤلف..." autocomplete="off">
+                        <div id="search-results" class="search-results-dropdown"></div>
+                    </div>
                 </div>
             </section>
 
             <!-- Processing Step 2: Edit/Upload -->
             <section id="edit-section" class="step-section hidden">
-                <div class="book-preview-card" id="current-book-card">
-                    <!-- Javascript will populate this -->
-                </div>
-
-                <div class="action-area">
-                    <div class="current-image-status">
-                        <h3>الصورة الحالية</h3>
-                        <div id="current-image-display" class="image-displaybox">
-                            <!-- Existing image or placeholder -->
-                        </div>
+                <div class="container-inner">
+                    <div class="edit-header">
+                        <h2>تحديث صورة الكتاب</h2>
+                        <button id="btn-back-to-search" class="btn-secondary back-btn">العودة إلى البحث</button>
                     </div>
 
-                    <div class="upload-controls">
-                        <h3>رفع صورة جديدة</h3>
-                        <div class="file-drop-zone" id="drop-zone">
-                            <span class="icon">📁</span>
-                            <span class="text">اسحب الصورة هنا أو اضغط للاختيار</span>
-                            <input type="file" id="file-input" accept="image/*" hidden>
-                        </div>
-                        <div id="preview-container" class="preview-container hidden">
-                            <img id="new-image-preview" src="" alt="New Preview">
-                            <button id="clear-preview" class="btn-sm">إلغاء</button>
+                    <div class="book-preview-card" id="current-book-card">
+                        <!-- Javascript will populate this -->
+                    </div>
+
+                    <div class="action-area">
+                        <div class="current-image-status">
+                            <h3><span class="icon">🖼️</span> الصورة الحالية</h3>
+                            <div id="current-image-display" class="image-displaybox">
+                                <!-- Existing image or placeholder -->
+                            </div>
                         </div>
 
-                        <div class="actions-row">
-                            <button id="btn-skip" class="btn-secondary">تخطي (التالي)</button>
-                            <button id="btn-upload" class="btn-primary" disabled>حفظ ورفع الصورة</button>
-                        </div>
+                        <div class="upload-controls">
+                            <h3><span class="icon">📤</span> رفع صورة جديدة</h3>
 
-                        <div id="upload-status" class="status-msg"></div>
+                            <div class="file-drop-zone" id="drop-zone">
+                                <span class="icon">📁</span>
+                                <div class="drop-zone-content">
+                                    <p>اسحب الصورة هنا أو اضغط للاختيار</p>
+                                    <small>الصيغ المقبولة: JPG, PNG, GIF (أقصى حجم: 5MB)</small>
+                                </div>
+                                <input type="file" id="file-input" accept="image/*" hidden>
+                            </div>
+
+                            <div id="preview-container" class="preview-container hidden">
+                                <img id="new-image-preview" src="" alt="معاينة الصورة الجديدة">
+                                <button id="clear-preview" class="btn-sm">إلغاء المعاينة</button>
+                            </div>
+
+                            <div class="actions-row">
+                                <button id="btn-skip" class="btn-secondary">تخطي (الكتاب التالي)</button>
+                                <button id="btn-upload" class="btn-primary" disabled>💾 حفظ ورفع الصورة</button>
+                            </div>
+
+                            <div id="upload-status" class="status-msg"></div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -80,23 +98,35 @@
     <!-- Authentication Modal -->
     <div id="auth-modal" class="modal" style="display: flex;">
         <div class="modal-content">
-            <h2>تسجيل الدخول</h2>
-            <p>هذه الصفحة محمية. يرجى إدخال كلمة المرور.</p>
-            <input type="password" id="auth-password" placeholder="Passcode"
-                style="width: 100%; padding: 10px; margin: 10px 0;">
-            <button id="btn-login" class="btn-primary">دخول</button>
-            <p id="auth-error" class="error" style="color:red; display:none;">كلمة المرور خاطئة</p>
+            <div class="modal-header">
+                <h2>🔐 تسجيل الدخول</h2>
+                <p>هذه الصفحة محمية. يرجى إدخال كلمة المرور للوصول إلى لوحة التحكم.</p>
+            </div>
+
+            <div class="modal-body">
+                <input type="password" id="auth-password" placeholder="أدخل كلمة المرور...">
+                <div class="modal-actions">
+                    <button id="btn-login" class="btn-primary">🔒 دخول النظام</button>
+                </div>
+                <p id="auth-error" class="error">كلمة المرور خاطئة، يرجى المحاولة مرة أخرى</p>
+            </div>
         </div>
     </div>
 
     <!-- Apps Script Configuration Modal -->
     <div id="config-modal" class="modal">
         <div class="modal-content">
-            <h2>إعدادات الربط</h2>
-            <p>يرجى إدخال رابط Apps Script Web App للبدء</p>
-            <input type="text" id="script-url-input" placeholder="https://script.google.com/macros/s/..."
-                style="width: 100%; padding: 10px; margin: 10px 0;">
-            <button id="save-config" class="btn-primary">حفظ</button>
+            <div class="modal-header">
+                <h2>⚙️ إعدادات الربط</h2>
+                <p>يرجى إدخال رابط تطبيق Google Apps Script للبدء</p>
+            </div>
+
+            <div class="modal-body">
+                <input type="text" id="script-url-input" placeholder="https://script.google.com/macros/s/...">
+                <div class="modal-actions">
+                    <button id="save-config" class="btn-primary">💾 حفظ الإعدادات</button>
+                </div>
+            </div>
         </div>
     </div>
 
