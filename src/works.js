@@ -53,6 +53,8 @@ function checkAuth() {
     if (DOM.authPasswordInput.value === PASS_CODE) {
         sessionStorage.setItem(AUTH_KEY, 'true');
         DOM.authModal.style.display = 'none';
+
+        // Only proceed to load app after successful authentication
         loadApp();
     } else {
         DOM.authError.classList.add('show');
@@ -69,9 +71,12 @@ async function loadApp() {
         alert('Failed to load books database');
     }
 
-    // If no script URL is saved, show config modal after successful authentication
+    // Only show config modal after successful authentication AND if no script URL exists
     if (!scriptUrl) {
         DOM.configModal.style.display = 'flex';
+    } else {
+        // If we have a script URL, proceed directly to the main interface
+        console.log('Using existing Apps Script URL');
     }
 
     setupEventListeners();
