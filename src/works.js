@@ -60,16 +60,18 @@ function checkAuth() {
 }
 
 async function loadApp() {
-    if (!scriptUrl) {
-        DOM.configModal.style.display = 'flex';
-    }
-
+    // Load books data first
     try {
         books = await fetchBooksData();
         console.log('Books loaded:', books.length);
     } catch (err) {
         console.error('Failed to load books', err);
         alert('Failed to load books database');
+    }
+
+    // If no script URL is saved, show config modal after successful authentication
+    if (!scriptUrl) {
+        DOM.configModal.style.display = 'flex';
     }
 
     setupEventListeners();
