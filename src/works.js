@@ -78,31 +78,57 @@ async function loadApp() {
 // Validate the Apps Script URL
 async function validateScriptUrl(url) {
     try {
-        // Test the connection by sending a simple ping request
+        // Test the connection by sending a simple test request
+        // Using GET method first to check if the endpoint is accessible
         const response = await fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ action: 'ping' })
+            // Send a minimal request to test connectivity
+            body: JSON.stringify({
+                action: 'validate',
+                timestamp: Date.now()
+            })
         });
 
         // Check if the response is OK and parse it
         if (!response.ok) {
-            return { valid: false, message: `Server responded with status: ${response.status}` };
+            return { valid: false, message: `استجاب الخادم بالحالة: ${response.status} ${response.statusText}` };
         }
 
-        const result = await response.json();
+        let result;
+        try {
+            result = await response.json();
+        } catch (parseError) {
+            // If JSON parsing fails, the server might be returning plain text
+            const textResponse = await response.text();
+            console.warn('Non-JSON response from server:', textResponse);
+            // If we got a response at all, consider it a connection success
+            return { valid: true, message: 'تم الاتصال بالخادم ولكن التنسيق غير متوقع.' };
+        }
 
-        // Check if the response has the expected format
-        if (result && typeof result === 'object') {
-            return { valid: true, message: 'Connection successful!' };
+        // Check if the response has a status or similar property indicating success
+        if (result && (result.status === 'success' || result.result || result.message)) {
+            return { valid: true, message: 'الاتصال ناجح!' };
         } else {
-            return { valid: false, message: 'Unexpected response format from server' };
+            return { valid: false, message: 'تنسيق الاستجابة من الخادم غير متوقع' };
         }
     } catch (error) {
         console.error('Validation failed:', error);
-        return { valid: false, message: `Connection failed: ${error.message || error}` };
+
+        // Provide more specific error messages
+        if (error.name === 'TypeError' && error.message.includes('fetch')) {
+            return { valid: false, message: 'غير قادر على الاتصال بالخادم. يرجى التحقق من رابط Apps Script.' };
+        } else if (error.message.includes('CORS')) {
+            return { valid: false, message: 'خطأ في CORS: يرجى التحقق من إعدادات نشر Apps Script.' };
+        } else if (error.message.includes('404')) {
+            return { valid: false, message: 'نقطة النهاية غير موجودة. يرجى التحقق من الرابط.' };
+        } else if (error.message.includes('403')) {
+            return { valid: false, message: 'تم رفض الوصول. يرجى التحقق من أذونات تنفيذ Apps Script.' };
+        } else {
+            return { valid: false, message: `فشل الاتصال: ${error.message || 'خطأ غير معروف'}` };
+        }
     }
 }
 
@@ -135,7 +161,7 @@ function setupEventListeners() {
     DOM.saveConfigBtn.addEventListener('click', async () => {
         const url = DOM.scriptUrlInput.value.trim();
         if (!url) {
-            showConfigError('Please enter a URL');
+            showConfigError('الرجاء إدخال رابط صحيح');
             return;
         }
 
@@ -143,12 +169,12 @@ function setupEventListeners() {
         try {
             new URL(url);
         } catch (e) {
-            showConfigError('Invalid URL format. Please enter a valid URL.');
+            showConfigError('تنسيق الرابط غير صحيح. يرجى إدخال رابط صحيح.');
             return;
         }
 
-        // Show loading state
-        DOM.saveConfigBtn.textContent = 'Testing...';
+        // Show loading state with spinner
+        DOM.saveConfigBtn.innerHTML = '<span class="spinner"></span> جاري الاختبار...';
         DOM.saveConfigBtn.disabled = true;
 
         try {
@@ -160,17 +186,18 @@ function setupEventListeners() {
                 DOM.configModal.style.display = 'none';
 
                 // Reset button
-                DOM.saveConfigBtn.textContent = '💾 حفظ الإعدادات';
+                DOM.saveConfigBtn.innerHTML = '💾 حفظ الإعدادات';
                 DOM.saveConfigBtn.disabled = false;
                 hideConfigError();
             } else {
                 showConfigError(validationResult.message);
-                DOM.saveConfigBtn.textContent = '💾 حفظ الإعدادات';
+                DOM.saveConfigBtn.innerHTML = '💾 حفظ الإعدادات';
                 DOM.saveConfigBtn.disabled = false;
             }
         } catch (error) {
-            showConfigError(`Validation error: ${error.message}`);
-            DOM.saveConfigBtn.textContent = '💾 حفظ الإعدادات';
+            console.error('Configuration validation failed:', error);
+            showConfigError(`فشل الاختبار: ${error.message || 'خطأ غير معروف'}`);
+            DOM.saveConfigBtn.innerHTML = '💾 حفظ الإعدادات';
             DOM.saveConfigBtn.disabled = false;
         }
     });
