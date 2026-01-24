@@ -27,7 +27,8 @@ const DOM = {
     authError: document.getElementById('auth-error'),
     configModal: document.getElementById('config-modal'),
     scriptUrlInput: document.getElementById('script-url-input'),
-    saveConfigBtn: document.getElementById('save-config')
+    saveConfigBtn: document.getElementById('save-config'),
+    configError: document.getElementById('config-error')
 };
 
 // --- Initialization ---
@@ -73,6 +74,47 @@ async function loadApp() {
     setupEventListeners();
 }
 
+// Validate the Apps Script URL
+async function validateScriptUrl(url) {
+    try {
+        // Test the connection by sending a simple ping request
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ action: 'ping' })
+        });
+
+        // Check if the response is OK and parse it
+        if (!response.ok) {
+            return { valid: false, message: `Server responded with status: ${response.status}` };
+        }
+
+        const result = await response.json();
+
+        // Check if the response has the expected format
+        if (result && typeof result === 'object') {
+            return { valid: true, message: 'Connection successful!' };
+        } else {
+            return { valid: false, message: 'Unexpected response format from server' };
+        }
+    } catch (error) {
+        console.error('Validation failed:', error);
+        return { valid: false, message: `Connection failed: ${error.message || error}` };
+    }
+}
+
+// Helper functions for config error handling
+function showConfigError(message) {
+    DOM.configError.textContent = message;
+    DOM.configError.classList.add('show');
+}
+
+function hideConfigError() {
+    DOM.configError.classList.remove('show');
+}
+
 function setupEventListeners() {
     // Search
     DOM.searchInput.addEventListener('input', handleSearch);
@@ -89,12 +131,46 @@ function setupEventListeners() {
     DOM.skipBtn.addEventListener('click', resetView);
 
     // Config
-    DOM.saveConfigBtn.addEventListener('click', () => {
+    DOM.saveConfigBtn.addEventListener('click', async () => {
         const url = DOM.scriptUrlInput.value.trim();
-        if (url) {
-            scriptUrl = url;
-            localStorage.setItem('library_script_url', url);
-            DOM.configModal.style.display = 'none';
+        if (!url) {
+            showConfigError('Please enter a URL');
+            return;
+        }
+
+        // Validate the URL format first
+        try {
+            new URL(url);
+        } catch (e) {
+            showConfigError('Invalid URL format. Please enter a valid URL.');
+            return;
+        }
+
+        // Show loading state
+        DOM.saveConfigBtn.textContent = 'Testing...';
+        DOM.saveConfigBtn.disabled = true;
+
+        try {
+            const validationResult = await validateScriptUrl(url);
+
+            if (validationResult.valid) {
+                scriptUrl = url;
+                localStorage.setItem('library_script_url', url);
+                DOM.configModal.style.display = 'none';
+
+                // Reset button
+                DOM.saveConfigBtn.textContent = '💾 حفظ الإعدادات';
+                DOM.saveConfigBtn.disabled = false;
+                hideConfigError();
+            } else {
+                showConfigError(validationResult.message);
+                DOM.saveConfigBtn.textContent = '💾 حفظ الإعدادات';
+                DOM.saveConfigBtn.disabled = false;
+            }
+        } catch (error) {
+            showConfigError(`Validation error: ${error.message}`);
+            DOM.saveConfigBtn.textContent = '💾 حفظ الإعدادات';
+            DOM.saveConfigBtn.disabled = false;
         }
     });
 
@@ -253,11 +329,16 @@ async function uploadImage() {
         try {
             const response = await fetch(scriptUrl, {
                 method: 'POST',
-                // mode: 'no-cors', // Apps Script needs specific handling, usually redirect.
-                // If we use 'no-cors', we can't read response. 
-                // Standard Apps Script Web App pattern allows CORS if set to "Anonymous" or "Me" with proper headers.
+                headers: {
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify(payload)
             });
+
+            // Check if the response is ok
+            if (!response.ok) {
+                throw new Error(`Server responded with status: ${response.status} ${response.statusText}`);
+            }
 
             const result = await response.json();
 
@@ -287,12 +368,25 @@ async function uploadImage() {
                 }, 1000);
 
             } else {
-                throw new Error(result.message || 'Unknown error');
+                throw new Error(result.message || 'Unknown error from server');
             }
 
         } catch (error) {
             console.error('Upload failed', error);
-            DOM.uploadStatus.innerHTML = '<span class="status-indicator error">✗ خطأ</span> فشل الرفع: ' + error.message;
+            let errorMessage = error.message;
+
+            // More specific error messages
+            if (error.message.includes('Failed to fetch')) {
+                errorMessage = 'Unable to connect to the server. Please check the Apps Script URL.';
+            } else if (error.message.includes('CORS')) {
+                errorMessage = 'CORS error: Please check your Apps Script deployment settings.';
+            } else if (error.message.includes('404')) {
+                errorMessage = 'Apps Script endpoint not found. Please check the URL.';
+            } else if (error.message.includes('403')) {
+                errorMessage = 'Access denied. Please check your Apps Script execution permissions.';
+            }
+
+            DOM.uploadStatus.innerHTML = '<span class="status-indicator error">✗ خطأ</span> فشل الرفع: ' + errorMessage;
             DOM.uploadStatus.classList.add('error');
             DOM.uploadBtn.disabled = false;
             DOM.uploadBtn.textContent = 'حاول مرة أخرى';
