@@ -26,6 +26,12 @@
   z-index: 50;
 }
 
+.header-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
 .logo-area h1 {
   font-size: 1.8rem;
   font-weight: 700;

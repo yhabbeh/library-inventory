@@ -28,7 +28,8 @@ const DOM = {
     configModal: document.getElementById('config-modal'),
     scriptUrlInput: document.getElementById('script-url-input'),
     saveConfigBtn: document.getElementById('save-config'),
-    configError: document.getElementById('config-error')
+    configError: document.getElementById('config-error'),
+    settingsBtn: document.getElementById('settings-btn')
 };
 
 // --- Initialization ---
@@ -176,6 +177,16 @@ function setupEventListeners() {
 
     // Back to search button
     DOM.btnBackToSearch.addEventListener('click', resetView);
+
+    // Settings button to reopen config modal
+    if (DOM.settingsBtn) {
+        DOM.settingsBtn.addEventListener('click', () => {
+            DOM.configModal.style.display = 'flex';
+            if (scriptUrl) {
+                DOM.scriptUrlInput.value = scriptUrl;
+            }
+        });
+    }
 }
 
 // --- Search Logic ---
