@@ -74,35 +74,37 @@
 
                             <div class="file-drop-zone" id="drop-zone">
                                 <span class="icon">📁</span>
-                                <div class="drop-zone-content">
-                                    <p>اسحب الصورة هنا أو اضغط للاختيار</p>
-                                    <small>الصيغ المقبولة: JPG, PNG, GIF (أقصى حجم: 5MB)</small>
-                                    <div class="camera-option">
-                                        <button id="btn-camera" class="btn-secondary btn-sm" style="margin-top: 10px;">
-                                            <span class="icon">📷</span> فتح الكاميرا
-                                        </button>
-                                    </div>
-                                </div>
-                                <input type="file" id="file-input" accept="image/*" hidden>
-                                <input type="file" id="camera-input" accept="image/*" capture="environment" hidden>
+                                <p>اسحب الصورة هنا أو اضغط للاختيار</p>
+                                <small>الصيغ المقبولة: JPG, PNG, GIF (أقصى حجم: 5MB)</small>
                             </div>
-
-                            <div id="preview-container" class="preview-container hidden">
-                                <img id="new-image-preview" src="" alt="معاينة الصورة الجديدة">
-                                <button id="clear-preview" class="btn-sm">إلغاء المعاينة</button>
+                            <div class="camera-option-separate" style="text-align: center; margin: 10px 0;">
+                                <button id="btn-camera" class="btn-secondary btn-sm" style="width: 100%;">
+                                    <span class="icon">📷</span> فتح الكاميرا
+                                </button>
                             </div>
+                            <input type="file" id="file-input" accept="image/*" hidden>
+                            <input type="file" id="camera-input" accept="image/*" capture="environment" hidden>
 
-                            <div class="actions-row">
-                                <button id="btn-skip" class="btn-secondary">تخطي (الكتاب التالي)</button>
-                                <button id="btn-upload" class="btn-primary" disabled>💾 حفظ ورفع الصورة</button>
-                            </div>
-
-                            <div id="upload-status" class="status-msg"></div>
                         </div>
+
+
+
+                        <div id="preview-container" class="preview-container hidden">
+                            <img id="new-image-preview" src="" alt="معاينة الصورة الجديدة">
+                            <button id="clear-preview" class="btn-sm">إلغاء المعاينة</button>
+                        </div>
+
+                        <div class="actions-row">
+                            <button id="btn-skip" class="btn-secondary">تخطي (الكتاب التالي)</button>
+                            <button id="btn-upload" class="btn-primary" disabled>💾 حفظ ورفع الصورة</button>
+                        </div>
+
+                        <div id="upload-status" class="status-msg"></div>
                     </div>
                 </div>
-            </section>
-        </main>
+    </div>
+    </section>
+    </main>
     </div>
 
     <!-- Authentication Modal -->
