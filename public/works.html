@@ -42,7 +42,8 @@
 
                     <div class="search-box-large">
                         <label for="book-search">ابحث عن كتاب لتعديله</label>
-                        <input type="text" id="book-search" placeholder="اكتب اسم الكتاب أو المؤلف..." autocomplete="off">
+                        <input type="text" id="book-search" placeholder="اكتب اسم الكتاب أو المؤلف..."
+                            autocomplete="off">
                         <div id="search-results" class="search-results-dropdown"></div>
                     </div>
                 </div>
@@ -97,24 +98,6 @@
             </section>
         </main>
 
-        <!-- Authentication Modal -->
-        <div id="auth-modal" class="modal" style="display: flex;">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>🔐 تسجيل الدخول</h2>
-                    <p>هذه الصفحة محمية. يرجى إدخال كلمة المرور للوصول إلى لوحة التحكم.</p>
-                </div>
-
-                <div class="modal-body">
-                    <input type="password" id="auth-password" placeholder="أدخل كلمة المرور...">
-                    <div class="modal-actions">
-                        <button id="btn-login" class="btn-primary">🔒 دخول النظام</button>
-                    </div>
-                    <p id="auth-error" class="error">كلمة المرور خاطئة، يرجى المحاولة مرة أخرى</p>
-                </div>
-            </div>
-        </div>
-
         <!-- Apps Script Configuration Modal -->
         <div id="config-modal" class="modal">
             <div class="modal-content">
@@ -133,6 +116,24 @@
             </div>
         </div>
     </div>
+    <!-- Authentication Modal -->
+    <div id="auth-modal" class="modal" style="display: flex;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🔐 تسجيل الدخول</h2>
+                <p>هذه الصفحة محمية. يرجى إدخال كلمة المرور للوصول إلى لوحة التحكم.</p>
+            </div>
+
+            <div class="modal-body">
+                <input type="password" id="auth-password" placeholder="أدخل كلمة المرور...">
+                <div class="modal-actions">
+                    <button id="btn-login" class="btn-primary">🔒 دخول النظام</button>
+                </div>
+                <p id="auth-error" class="error">كلمة المرور خاطئة، يرجى المحاولة مرة أخرى</p>
+            </div>
+        </div>
+    </div>
+
 
     <script type="module" src="/src/works.js"></script>
 </body>
