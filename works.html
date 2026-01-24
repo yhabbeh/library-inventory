@@ -77,8 +77,14 @@
                                 <div class="drop-zone-content">
                                     <p>اسحب الصورة هنا أو اضغط للاختيار</p>
                                     <small>الصيغ المقبولة: JPG, PNG, GIF (أقصى حجم: 5MB)</small>
+                                    <div class="camera-option">
+                                        <button id="btn-camera" class="btn-secondary btn-sm" style="margin-top: 10px;">
+                                            <span class="icon">📷</span> فتح الكاميرا
+                                        </button>
+                                    </div>
                                 </div>
                                 <input type="file" id="file-input" accept="image/*" hidden>
+                                <input type="file" id="camera-input" accept="image/*" capture="environment" hidden>
                             </div>
 
                             <div id="preview-container" class="preview-container hidden">

@@ -15,6 +15,8 @@ const DOM = {
     currentBookCard: document.getElementById('current-book-card'),
     currentImageDisplay: document.getElementById('current-image-display'),
     fileInput: document.getElementById('file-input'),
+    cameraInput: document.getElementById('camera-input'),
+    btnCamera: document.getElementById('btn-camera'),
     dropZone: document.getElementById('drop-zone'),
     previewContainer: document.getElementById('preview-container'),
     previewImage: document.getElementById('new-image-preview'),
@@ -80,6 +82,15 @@ function setupEventListeners() {
     // File Upload UI
     DOM.dropZone.addEventListener('click', () => DOM.fileInput.click());
     DOM.fileInput.addEventListener('change', handleFileSelect);
+
+    // Camera Support
+    if (DOM.btnCamera && DOM.cameraInput) {
+        DOM.btnCamera.addEventListener('click', (e) => {
+            e.stopPropagation(); // prevent triggering dropZone click if nested
+            DOM.cameraInput.click();
+        });
+        DOM.cameraInput.addEventListener('change', handleFileSelect);
+    }
     DOM.dropZone.addEventListener('dragover', (e) => { e.preventDefault(); DOM.dropZone.classList.add('dragover'); });
     DOM.dropZone.addEventListener('dragleave', () => DOM.dropZone.classList.remove('dragover'));
     DOM.dropZone.addEventListener('drop', handleDrop);
@@ -204,6 +215,7 @@ function processFile(file) {
 
 function clearPreview() {
     DOM.fileInput.value = '';
+    if (DOM.cameraInput) DOM.cameraInput.value = '';
     DOM.previewContainer.classList.add('hidden');
     DOM.dropZone.classList.remove('hidden');
     DOM.uploadBtn.disabled = true;
@@ -214,9 +226,14 @@ function clearPreview() {
 // --- Upload Logic ---
 
 async function uploadImage() {
-    if (!currentBook || !DOM.fileInput.files[0]) return;
+    if (!currentBook) return;
 
-    const file = DOM.fileInput.files[0];
+    const hasFile = DOM.fileInput.files[0] || (DOM.cameraInput && DOM.cameraInput.files[0]);
+    if (!hasFile) return;
+
+    // Check both inputs for a file
+    const file = DOM.fileInput.files[0] || (DOM.cameraInput && DOM.cameraInput.files[0]);
+    if (!file) return;
     DOM.uploadBtn.disabled = true;
     DOM.uploadBtn.textContent = 'جاري الرفع...';
 
